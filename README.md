@@ -5,6 +5,9 @@
 
 **Live workbench:** [https://vitroml.com](https://vitroml.com)
 
+<img width="1283" height="803" alt="Screenshot 2026-10-29 at 23 38 37" src="https://github.com/user-attachments/assets/73061ed7-1a8b-4a06-9529-6b37cc4af031" />
+
+
 An interactive, in-browser visualizer and mechanistic interpretability environment written in TypeScript and Svelte. The tool executes autoregressive transformer inference locally on `Float32Array` buffers, allowing users to step through individual layers, inspect intermediate activation tensors, and apply mid-run interventions (such as attention head ablation, activation patching, and steering vectors) without a server-side runtime.
 
 ---
