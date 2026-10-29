@@ -1,0 +1,34 @@
+{
+  "name": "vitroml",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "verify": "tsx scripts/verify_forward.ts",
+    "verify:interventions": "tsx scripts/verify_interventions.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "@testing-library/svelte": "^4.2.3",
+    "@types/d3": "^7.4.3",
+    "@types/node": "^20.17.0",
+    "autoprefixer": "^10.6.1",
+    "d3": "^7.9.0",
+    "jsdom": "^24.1.3",
+    "postcss": "^8.5.29",
+    "svelte": "^4.2.20",
+    "svelte-preprocess": "^5.1.4",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.0"
+  }
+}

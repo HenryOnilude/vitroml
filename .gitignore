@@ -1,0 +1,7 @@
+node_modules
+dist
+.cache
+.DS_Store
+test-results
+playwright-report
+public/models/stories15M.bin
