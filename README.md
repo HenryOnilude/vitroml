@@ -18,7 +18,7 @@ Existing educational and interpretability tools typically fall into two categori
 
 This tool implements both stepped execution and mutable mid-run intervention directly in the browser using a hand-written TypeScript tensor engine. All computation, weight parsing, and state modifications occur client-side in memory.
 
-> **Key finding:** Ablating all 36 attention heads across 10 prompts shows that layer 5, head 4 is the most consistently influential head in the model — it is the single most impactful head in 8 of 20 non-BOS samples, with a mean logit shift of ΔL2 285 versus 190 for the next-ranked head. Meanwhile the heads that send the most attention to the first token — the "attention sink" pattern — are the least impactful of all: removing them barely changes the output. See [Section 7](#7-ablation-sweep-which-heads-matter-and-when) for the methodology, full data, and limitations.
+> **Key finding:** Ablating all 36 attention heads across 10 prompts shows that layer 5, head 4 is the most consistently influential head in the model, it is the single most impactful head in 8 of 20 non-BOS samples, with a mean logit shift of ΔL2 285 versus 190 for the next-ranked head. Meanwhile the heads that send the most attention to the first token, the "attention sink" pattern — are the least impactful of all: removing them barely changes the output. See [Section 7](#7-ablation-sweep-which-heads-matter-and-when) for the methodology, full data, and limitations.
 
 ---
 
@@ -144,7 +144,7 @@ Interventions are implemented as modular `HookFn` callbacks registered against d
 
 ## 7. Ablation Sweep: Which Heads Matter, and When
 
-All 36 heads were zero-ablated across 10 story-style prompts at 3 positions each (BOS, mid-prompt, final prompt token) — 30 conditions, 1,080 forward passes. Impact is measured as $\|\Delta\text{logits}\|_2$ between the baseline and ablated output at that position. Raw data: `scripts/ablation_sweep_results.json` (reproduce with `npx tsx scripts/ablation_sweep.ts`).
+All 36 heads were zero-ablated across 10 story-style prompts at 3 positions each (BOS, mid-prompt, final prompt token), 30 conditions, 1,080 forward passes. Impact is measured as $\|\Delta\text{logits}\|_2$ between the baseline and ablated output at that position. Raw data: `scripts/ablation_sweep_results.json` (reproduce with `npx tsx scripts/ablation_sweep.ts`).
 
 Top 12 heads by mean impact:
 
@@ -165,11 +165,11 @@ Bottom 3 (least impactful): **L5:H1** (21.8, attn→BOS 0.84), **L2:H3** (27.0),
 
 ### Findings
 
-**1. L5:H4 is a consistently high-impact head — the original result was real, not an outlier.** It is the top-impact head in all 10 BOS conditions and in 8 of 20 non-BOS conditions, and ranks in the top 5 in 75% of non-BOS samples. Its mean non-BOS impact (285.4) is ~1.5× the second-ranked head (L0:H5, 190.1). However, the original single-point comparison overstated the gap: vs. L0:H0 the sweep shows ~2.7×, not ~25×, because impact varies substantially by context ($\sigma \approx 133$).
+**1. L5:H4 is a consistently high-impact head — the original result was real, not an outlier.** It is the top-impact head in all 10 BOS conditions and in 8 of 20 non-BOS conditions and ranks in the top 5 in 75% of non-BOS samples. Its mean non-BOS impact (285.4) is ~1.5× the second-ranked head (L0:H5, 190.1). However, the original single-point comparison overstated the gap: vs. L0:H0 the sweep shows ~2.7×, not ~25×, because impact varies substantially by context ($\sigma \approx 133$).
 
 **2. Heads that dump attention on BOS are the least impactful — consistent with "attention sink" heads.** The three heads with the highest BOS attention share (L4:H2 0.87, L5:H1 0.84, L0:H0 0.80) occupy the bottom of the impact table. This matches the attention-sink literature: heads that route attention to the start token are effectively holding a "no-op" register, so removing them changes little. **L5:H4 is the instructive exception** — it also weights BOS heavily (0.57) but is the *most* impactful head, and unlike the sink heads it puts 0.45 of its mass on the current position. Same surface attention pattern, different function: the sink heads treat BOS as a place to park probability mass; L5:H4 treats it as an anchor that carries real signal into the output projection.
 
-**3. L0:H3 and L2:H0 behave like "previous-token heads."** They place 0.51 and 0.56 of their mean attention on the immediately preceding token — the largest such fractions in the model — and carry real weight (non-BOS means 162.0 and 102.0). This resembles the previous-token component described in the induction-heads literature (the first half of the "previous token → copy" circuit), though we have not demonstrated the copying half here.
+**3. L0:H3 and L2:H0 behave like "previous-token heads."** They place 0.51 and 0.56 of their mean attention on the immediately preceding token, the largest such fractions in the model and carry real weight (non-BOS means 162.0 and 102.0). This resembles the previous-token component described in the induction-heads literature (the first half of the "previous token → copy" circuit), though we have not demonstrated the copying half here.
 
 ### Limitations
 
