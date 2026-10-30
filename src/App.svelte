@@ -192,14 +192,14 @@
 <div class="min-h-screen bg-canvas text-ink flex flex-col font-sans">
   <!-- Minimalist High-End Masthead -->
   <header class="border-b border-hairline bg-white/80 backdrop-blur sticky top-0 z-50 shadow-subtle">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 min-h-[3rem] py-1.5 flex flex-wrap items-center justify-between gap-2 min-w-0">
       <!-- Left: Brand / Wordmark -->
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 min-w-0">
         <span class="font-extrabold text-sm tracking-tight text-ink font-mono uppercase">
           Vitro
         </span>
         <span class="text-hairline-bright font-mono text-xs">/</span>
-        <span class="text-xs text-ink-secondary font-semibold">
+        <span class="text-xs text-ink-secondary font-semibold truncate">
           stories15M · Mechanistic Interpretability Workbench
         </span>
       </div>
@@ -276,10 +276,10 @@
 
         <!-- 4. Dual Data Viewports: watch the computation (left), then intervene (right) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
-          <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-2 px-1">
+          <div class="flex flex-col gap-3 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
               <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Inside the computation</span>
-              <span class="flex-1 h-px bg-hairline"></span>
+              <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
               <span class="text-[10px] font-sans text-ink-muted">the same six heads appear in every view</span>
             </div>
             <ResidualStreamView
@@ -291,7 +291,7 @@
               {currentToken}
             />
 
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
               <AttentionMap
                 stepState={$stateStore?.currentStep ?? null}
                 {positionLabels}
@@ -300,10 +300,10 @@
             </div>
           </div>
 
-          <div class="space-y-3">
-            <div class="flex items-center gap-2 px-1">
+          <div class="space-y-3 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
               <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Run the experiment</span>
-              <span class="flex-1 h-px bg-hairline"></span>
+              <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
               <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
             </div>
             <InterventionPanel
@@ -323,8 +323,8 @@
   </main>
 
   <!-- High-Contrast Technical Telemetry Footer -->
-  <footer class="border-t border-hairline py-3 px-6 bg-white text-xs font-mono">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
+  <footer class="border-t border-hairline py-3 px-4 sm:px-6 bg-white text-xs font-mono">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 min-w-0">
       <span class="text-slate-800 font-bold">15.2M Parameters · 6 Layers · 6 Heads · d=288</span>
       <span class="text-slate-900 font-extrabold">Token {currentToken} · Position {currentPos}</span>
     </div>

@@ -103,8 +103,8 @@
   <!-- Comparison Results Panel with Causal Storytelling Banner -->
   <div class="bg-white border border-hairline rounded p-3.5 shadow-subtle">
     <!-- Header with High-Contrast Typography -->
-    <div class="flex items-center justify-between pb-2 mb-2 border-b border-hairline text-xs font-mono">
-      <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
         <span class="text-ink font-bold text-xs uppercase tracking-wider">Causal Intervention</span>
         <span class="text-hairline-bright font-bold">/</span>
         <span class="text-ink-secondary font-sans font-bold">
@@ -160,7 +160,7 @@
         </div>
 
         <!-- Metrics Bar with High-Contrast Bold Text -->
-        <div class="grid grid-cols-4 gap-2 text-center text-xs font-mono">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono">
           <div
             class="bg-canvas-elevated border border-hairline rounded p-1.5"
             title="Total change across all 32,000 output scores when this head is switched off"

@@ -42,4 +42,26 @@ test.describe('workbench smoke test', () => {
       'critical axe violations found'
     ).toEqual([]);
   });
+
+  test('no horizontal overflow at 390px mobile viewport across all cards', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(page.getByText('Working Vector')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Total Shift Δ', { exact: true })).toBeVisible({ timeout: 30_000 });
+
+    const overflow = await page.evaluate(() => {
+      const docOverflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+      const overflowingElements: string[] = [];
+      for (const el of Array.from(document.querySelectorAll('header, main, footer, section, main > div > *'))) {
+        const rect = el.getBoundingClientRect();
+        if (rect.right > window.innerWidth + 0.5 || rect.left < -0.5) {
+          overflowingElements.push(`${el.tagName}.${el.className}: right=${rect.right.toFixed(1)}`);
+        }
+      }
+      return { docOverflow, overflowingElements };
+    });
+
+    expect(overflow.overflowingElements).toEqual([]);
+    expect(overflow.docOverflow).toBeLessThanOrEqual(0);
+  });
 });

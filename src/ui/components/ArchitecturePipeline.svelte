@@ -35,15 +35,15 @@
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col gap-2.5">
   <!-- Top Telemetry Row with High-Contrast Text -->
-  <div class="flex items-center justify-between text-xs font-mono">
-    <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 text-xs font-mono min-w-0">
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
       <span class="text-ink font-bold text-xs uppercase tracking-wider">Execution Pipeline</span>
       <span class="text-slate-300 font-bold">•</span>
       <span class="text-ink-secondary font-sans font-medium text-xs">6 stops · look back, then refine, at each one</span>
     </div>
 
     <!-- Active State & Tensor Shape Badge -->
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2 min-w-0">
       {#if state?.currentStep}
         <span class="text-amber-950 font-bold bg-amber-100/80 border border-amber-300 px-2.5 py-0.5 rounded text-[11px] shadow-sm flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>

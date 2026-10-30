@@ -86,7 +86,7 @@
     </div>
 
     <!-- Right: capabilities as panel thumbnails -->
-    <div class="shrink-0 flex md:flex-col gap-2.5 text-[11px] font-sans font-medium text-ink-secondary">
+    <div class="shrink-0 flex flex-col gap-2.5 text-[11px] font-sans font-medium text-ink-secondary min-w-0">
       <!-- Step through the forward pass → residual stream bars -->
       <span class="flex items-center gap-2">
         <span class="w-8 h-5 flex items-end gap-[1.5px] shrink-0" aria-hidden="true">
@@ -148,7 +148,7 @@
     </div>
 
     <!-- The payoff: the model writing a story, token by token -->
-    <div class="mt-2 flex items-center gap-2 text-[11px] font-mono" aria-hidden="true">
+    <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-mono min-w-0" aria-hidden="true">
       <span class="text-[9px] font-bold uppercase tracking-wider text-ink-muted shrink-0">it writes</span>
       <span class="text-slate-700">⟨s⟩ Once upon a time</span>
       <span class="text-amber-700 font-bold">

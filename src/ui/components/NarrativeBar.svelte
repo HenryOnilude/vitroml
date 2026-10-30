@@ -115,13 +115,13 @@
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all duration-200">
   <!-- Left Narrative Text -->
-  <div class="flex items-start gap-3">
+  <div class="flex items-start gap-3 min-w-0">
     <div class="w-2 h-2 rounded-full bg-accent-bronze mt-1 shrink-0 animate-pulse"></div>
 
-    <div class="space-y-0.5">
+    <div class="space-y-0.5 min-w-0">
       {#key narrative.headline}
         <div class="space-y-0.5" in:fly={{ y: 5, duration: 220 }}>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
             <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-accent-bronze">
               {narrative.phaseTag}
             </span>

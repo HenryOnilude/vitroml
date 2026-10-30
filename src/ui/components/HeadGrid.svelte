@@ -45,15 +45,15 @@
 </script>
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle">
-  <div class="flex items-center justify-between pb-2 mb-2 border-b border-hairline text-xs font-mono">
-    <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
+    <div class="flex flex-wrap items-center gap-2 min-w-0">
       <span class="text-ink font-bold text-xs uppercase tracking-wider">Circuit Map</span>
       <span class="text-hairline-bright">•</span>
       <span class="text-ink-secondary font-sans text-xs">36 Attention Heads</span>
     </div>
 
     <!-- Minimal legend -->
-    <div class="text-[11px] text-ink-tertiary flex items-center gap-3 font-mono">
+    <div class="text-[11px] text-ink-tertiary flex flex-wrap items-center gap-x-3 gap-y-1 font-mono min-w-0">
       <span class="flex items-center gap-1.5">
         <span class="w-2.5 h-2.5 rounded bg-ink shadow-sm"></span>
         <span class="text-ink-secondary">Selected</span>

@@ -204,8 +204,8 @@
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col justify-between">
   <!-- Header & Metric Badges with High-Contrast Typography -->
-  <div class="flex items-center justify-between pb-2 mb-2 border-b border-hairline text-xs font-mono">
-    <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
+    <div class="flex flex-wrap items-center gap-2 min-w-0">
       <span
         class="text-ink font-bold text-xs uppercase tracking-wider"
         title="The vector each token carries through the model. Every layer reads it and writes back into it. Also called the residual stream."
@@ -226,7 +226,7 @@
     </div>
 
     <!-- Integrated Stats Summary with Bold Text -->
-    <div class="flex items-center gap-3.5 text-xs">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs min-w-0">
       <!-- x / Δx view toggle -->
       <div class="flex items-center rounded border border-hairline overflow-hidden text-[10px] font-mono font-bold">
         <button
@@ -386,9 +386,9 @@
   </div>
 
   <!-- Hypothesis Evolution Tracker · Logit Lens -->
-  <div class="mt-2.5 pt-2 border-t border-hairline text-[11px] font-mono">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2">
+  <div class="mt-2.5 pt-2 border-t border-hairline text-[11px] font-mono min-w-0">
+    <div class="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-800">Best Guess So Far</span>
         <span class="text-slate-300 font-bold">·</span>
         <span class="text-slate-600 font-sans font-medium">the model's top pick after each step</span>
@@ -442,7 +442,7 @@
         </div>
       {/if}
     {:else}
-      <span class="text-slate-800 font-medium">Step the model forward. After each stage, this vector is scored against the vocabulary and the model's top guess appears here, evolving with depth</span>
+      <p class="mt-2 text-slate-800 font-medium leading-relaxed">Step the model forward. After each stage, this vector is scored against the vocabulary and the model's top guess appears here, evolving with depth</p>
     {/if}
   </div>
 </div>
