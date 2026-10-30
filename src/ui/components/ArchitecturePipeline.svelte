@@ -64,9 +64,15 @@
     </div>
   </div>
 
-  <p class="text-xs font-sans font-medium text-slate-900 leading-relaxed">
-    This strip maps the journey one word takes to guess the next word. The amber dot is that word travelling through the model. <strong>Embed</strong> gives it a starting meaning. Each layer <strong>L0 to L5</strong> looks back at earlier words (<strong>Attn</strong>), then refines what it knows (<strong>FFN</strong>). <strong>Rescale</strong> tidies the numbers, and <strong>Scores</strong> turns it into a guess. Press Step or Play and watch the dot travel.
+  <p class="text-xs font-sans font-medium text-slate-900 mb-1">
+    The journey one word takes to guess the next.
   </p>
+  <details class="text-xs">
+    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+      This strip maps the journey one word takes to guess the next word. The amber dot is that word travelling through the model. <strong>Embed</strong> gives it a starting meaning. Each layer <strong>L0 to L5</strong> looks back at earlier words (<strong>Attn</strong>), then refines what it knows (<strong>FFN</strong>). <strong>Rescale</strong> tidies the numbers, and <strong>Scores</strong> turns it into a guess. Press Step or Play and watch the dot travel.
+    </p>
+  </details>
 
   <!-- Sleek Continuous Architectural Bus -->
   <div class="relative flex items-center justify-between bg-canvas-elevated border border-hairline rounded p-2 overflow-x-auto scrollbar-none gap-2">

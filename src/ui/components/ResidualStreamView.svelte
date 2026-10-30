@@ -261,9 +261,15 @@
     </div>
   </div>
 
-  <p class="text-xs font-sans font-medium text-slate-900 leading-relaxed mb-2">
-    The token's working notes. Every layer reads these 288 numbers and writes changes back into them. The shaded bands group the numbers into the same six head slices you see as rows below and as Circuit Map squares on the right.
+  <p class="text-xs font-sans font-medium text-slate-900 mb-1">
+    The token's 288 working numbers, rewritten at every stage.
   </p>
+  <details class="text-xs mb-2">
+    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+      The token's working notes. Every layer reads these 288 numbers and writes changes back into them. The shaded bands group the numbers into the same six head slices you see as rows below and as Circuit Map squares on the right.
+    </p>
+  </details>
 
   <!-- Main Chart Canvas -->
   <div class="relative bg-slate-50 border border-slate-200 rounded p-2 overflow-hidden shadow-inner">

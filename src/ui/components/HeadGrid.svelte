@@ -69,9 +69,15 @@
     </div>
   </div>
 
-  <p class="text-xs font-sans font-medium text-slate-900 leading-relaxed mb-2">
-    Each square is one attention head (<span class="font-mono">layer:head</span>). The shading shows how much the output changes when that head is off. Darker means it matters more. Click a square to switch that head off and watch what changes below.
+  <p class="text-xs font-sans font-medium text-slate-900 mb-1">
+    Click a square to switch that head off.
   </p>
+  <details class="text-xs mb-2">
+    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+      Each square is one attention head (<span class="font-mono">layer:head</span>). The shading shows how much the output changes when that head is off. Darker means it matters more. Click a square to switch that head off and watch what changes below.
+    </p>
+  </details>
 
   <!-- 6x6 Head Matrix Grid with Hover Brushing -->
   <div class="grid grid-cols-7 gap-1 text-xs font-mono items-center">

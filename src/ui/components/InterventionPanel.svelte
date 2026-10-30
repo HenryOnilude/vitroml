@@ -125,9 +125,15 @@
       </button>
     </div>
 
-    <p class="text-xs font-sans font-medium text-slate-900 leading-relaxed mb-2">
-      The experiment bench. Pick a head on the Circuit Map and this runs the model twice: once normally, once with that head's 48 channels zeroed. The numbers show exactly what the head was contributing.
+    <p class="text-xs font-sans font-medium text-slate-900 mb-1">
+      The experiment bench. Cut a head, measure the change.
     </p>
+    <details class="text-xs mb-2">
+      <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
+      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+        The experiment bench. Pick a head on the Circuit Map and this runs the model twice: once normally, once with that head's 48 channels zeroed. The numbers show exactly what the head was contributing.
+      </p>
+    </details>
 
     {#if comparisonResult}
       <div class="space-y-2.5 transition-all duration-200">

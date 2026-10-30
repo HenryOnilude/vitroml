@@ -202,9 +202,17 @@
   </div>
   </div>
 
-  <p class="px-3 py-1.5 border-t border-hairline text-xs font-sans font-medium text-slate-900 leading-relaxed">
-    The controls. Type the start of a story in the box, or tap a preset. <strong>Step</strong> moves the model one stage at a time. <strong>Play</strong> runs it through, and the × button sets the speed. Each chip below is one piece of the story. Slate chips are your words. Amber chips are what the model wrote. The dark chip is the word being worked on right now.
-  </p>
+  <div class="px-3 py-1.5 border-t border-hairline text-xs">
+    <p class="font-sans font-medium text-slate-900 mb-1">
+      Type a story start, then tap <strong>Step</strong> or <strong>Play</strong>.
+    </p>
+    <details>
+      <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
+      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+        The controls. Type the start of a story in the box, or tap a preset. <strong>Step</strong> moves the model one stage at a time. <strong>Play</strong> runs it through, and the × button sets the speed. Each chip below is one piece of the story. Slate chips are your words. Amber chips are what the model wrote. The dark chip is the word being worked on right now.
+      </p>
+    </details>
+  </div>
 
   <!-- Autoregressive Token Stream: BOS → prompt prefill → generated (full-width row, auto-scrolls to newest) -->
   <div class="border-t border-hairline bg-canvas-elevated/60">
