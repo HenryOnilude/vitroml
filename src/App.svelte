@@ -39,6 +39,9 @@
   // Cross-view brushing state: hovered head index (0..5)
   let brushedHead: number | null = null;
 
+  // Mobile act switcher: on <lg only one column is visible at a time
+  let mobileAct: 1 | 2 = 1;
+
   let stateStore: ForwardController['state'] | null = null;
   $: stateStore = controller ? controller.state : null;
   $: currentActiveLayer = $stateStore?.currentStep?.layer ?? -1;
@@ -141,23 +144,62 @@
     currentPos = 0;
   }
 
+  const MODEL_CACHE = 'vitroml-models-v1';
+
+  // Streams a binary with live download percentage, then persists it in the
+  // Cache API so repeat visits skip the 58 MB download entirely.
+  async function fetchBinary(url: string, expectedBytes: number, label: string, hint: string): Promise<ArrayBuffer> {
+    if ('caches' in window) {
+      try {
+        const cache = await caches.open(MODEL_CACHE);
+        const hit = await cache.match(url);
+        if (hit) {
+          loadingProgress = `${label} loaded from local cache`;
+          return await hit.arrayBuffer();
+        }
+      } catch { /* Cache API unavailable; fall through to network */ }
+    }
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to load ${label}: ${res.status} ${res.statusText}`);
+    if (!res.body) return await res.arrayBuffer();
+
+    const total = Number(res.headers.get('content-length')) || expectedBytes;
+    const reader = res.body.getReader();
+    const parts: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      received += value.byteLength;
+      const pct = Math.min(100, Math.floor((received / total) * 100));
+      loadingProgress = `Downloading ${label} ${pct}%${hint}`;
+    }
+    const buf = new Uint8Array(received);
+    let offset = 0;
+    for (const part of parts) {
+      buf.set(part, offset);
+      offset += part.byteLength;
+    }
+
+    if ('caches' in window) {
+      try {
+        const cache = await caches.open(MODEL_CACHE);
+        await cache.put(url, new Response(buf.slice().buffer, { headers: { 'Content-Type': 'application/octet-stream' } }));
+      } catch { /* storage full or blocked; page still works */ }
+    }
+    return buf.buffer;
+  }
+
   onMount(async () => {
     try {
-      loadingProgress = 'Loading tokenizer...';
       const baseUrl = import.meta.env.BASE_URL || '/';
-      const tokRes = await fetch(`${baseUrl}models/tokenizer.bin`);
-      if (!tokRes.ok) {
-        throw new Error(`Failed to load tokenizer: ${tokRes.status} ${tokRes.statusText}`);
-      }
-      const tokBuf = await tokRes.arrayBuffer();
+      loadingProgress = 'Loading tokenizer...';
+      const tokBuf = await fetchBinary(`${baseUrl}models/tokenizer.bin`, 430_000, 'tokenizer', '');
       tokenizer = parseTokenizer(tokBuf, 32000);
 
-      loadingProgress = 'Loading stories15M.bin (58 MB)...';
-      const modelRes = await fetch(`${baseUrl}models/stories15M.bin`);
-      if (!modelRes.ok) {
-        throw new Error(`Failed to load model weights: ${modelRes.status} ${modelRes.statusText}`);
-      }
-      const modelBuf = await modelRes.arrayBuffer();
+      const modelBuf = await fetchBinary(`${baseUrl}models/stories15M.bin`, 61_000_000, 'stories15M.bin', ' · 58 MB, first visit only');
 
       loadingProgress = 'Mapping zero-copy tensors...';
       const parsed = parseCheckpoint(modelBuf);
@@ -274,9 +316,27 @@
           inputPiece={currentInputLabel}
         />
 
+        <!-- Mobile act switcher: pick one act at a time on narrow screens -->
+        <div class="lg:hidden flex rounded border border-hairline overflow-hidden text-[11px] font-mono font-bold bg-white">
+          <button
+            type="button"
+            on:click={() => (mobileAct = 1)}
+            class={`flex-1 px-3 py-1.5 transition-colors ${mobileAct === 1 ? 'bg-ink text-white' : 'text-ink-secondary hover:text-ink'}`}
+          >
+            Act 1 · Inside
+          </button>
+          <button
+            type="button"
+            on:click={() => (mobileAct = 2)}
+            class={`flex-1 px-3 py-1.5 transition-colors border-l border-hairline ${mobileAct === 2 ? 'bg-ink text-white' : 'text-ink-secondary hover:text-ink'}`}
+          >
+            Act 2 · Experiment
+          </button>
+        </div>
+
         <!-- 4. Dual Data Viewports: watch the computation (left), then intervene (right) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
-          <div class="flex flex-col gap-3 min-w-0">
+          <div class={`flex-col gap-3 min-w-0 ${mobileAct === 1 ? 'flex' : 'hidden'} lg:flex`}>
             <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
               <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Inside the computation</span>
               <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
@@ -300,7 +360,7 @@
             </div>
           </div>
 
-          <div class="space-y-3 min-w-0">
+          <div class={`space-y-3 min-w-0 ${mobileAct === 2 ? '' : 'hidden'} lg:block`}>
             <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
               <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Run the experiment</span>
               <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>

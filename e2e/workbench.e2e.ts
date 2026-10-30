@@ -6,7 +6,7 @@ test.describe('workbench smoke test', () => {
     await page.goto('/');
 
     await expect(page.getByText('Execution Pipeline')).toBeVisible();
-    await expect(page.getByText('Attention Field')).toBeVisible();
+    await expect(page.getByText('Attention Field', { exact: true })).toBeVisible();
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible();
     // Token tape starts with the BOS chip
     await expect(page.getByText('⟨s⟩').first()).toBeVisible();
@@ -43,11 +43,19 @@ test.describe('workbench smoke test', () => {
     ).toEqual([]);
   });
 
-  test('no horizontal overflow at 390px mobile viewport across all cards', async ({ page }) => {
+  test('390px: act switcher swaps panels and nothing overflows', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await expect(page.getByText('Working Vector')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText('Total Shift Δ', { exact: true })).toBeVisible({ timeout: 30_000 });
+
+    // Mobile: only Act 1 visible by default, switcher present
+    await expect(page.getByRole('button', { name: 'Act 2 · Experiment' })).toBeVisible();
+    await expect(page.getByText('Circuit Map', { exact: true })).not.toBeVisible();
+
+    // Switch to Act 2
+    await page.getByRole('button', { name: 'Act 2 · Experiment' }).click();
+    await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible();
+    await expect(page.getByText('Working Vector')).not.toBeVisible();
 
     const overflow = await page.evaluate(() => {
       const docOverflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
@@ -63,5 +71,18 @@ test.describe('workbench smoke test', () => {
 
     expect(overflow.overflowingElements).toEqual([]);
     expect(overflow.docOverflow).toBeLessThanOrEqual(0);
+  });
+
+  test('1280px: both acts side by side, no switcher, no overflow', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await expect(page.getByText('Working Vector')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: 'Act 2 · Experiment' })).not.toBeVisible();
+
+    const docOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(docOverflow).toBeLessThanOrEqual(0);
   });
 });

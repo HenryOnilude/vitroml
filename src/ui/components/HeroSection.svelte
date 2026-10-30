@@ -161,7 +161,7 @@
     {#if !hintDismissed}
       <div class="mt-2 flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
         <span class="text-[10px] font-sans font-medium text-amber-900">
-          First time? Press <strong>▶ Play</strong> below. The model starts writing and everything lights up.
+          First time? Press <strong>▶ Play</strong> in the controls. The model starts writing and everything lights up.
         </span>
         <button
           on:click={() => (hintDismissed = true)}
