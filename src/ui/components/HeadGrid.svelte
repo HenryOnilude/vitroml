@@ -7,6 +7,7 @@
   export let ablatedHead: number | null = 4;
   export let currentActiveLayer: number = -1;
   export let hoveredHead: number | null = null;
+  export let highlighted: boolean = false;
   // Measured importance: importance[l][h] = ‖Δlogits‖₂ when head is zero-ablated.
   // null = not yet computed for that head.
   export let importance: (number | null)[][] | null = null;
@@ -44,7 +45,12 @@
   }
 </script>
 
-<div class="bg-white border border-hairline rounded p-3 shadow-subtle">
+<div
+  id="panel-circuit-map"
+  class={`bg-white border rounded p-3 shadow-subtle transition-all duration-300 ${
+    highlighted ? 'border-amber-500 ring-2 ring-amber-400/70' : 'border-hairline'
+  }`}
+>
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-2 min-w-0">
       <span class="text-ink font-bold text-xs uppercase tracking-wider">Circuit Map</span>

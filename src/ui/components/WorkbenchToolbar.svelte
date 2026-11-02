@@ -8,6 +8,7 @@
   export let promptText: string = 'Once upon a time';
   export let currentPos: number = 0;
   export let generatedTokens: { id: number; piece: string }[] = [];
+  export let highlighted: boolean = false;
 
   const dispatch = createEventDispatcher<{
     tokensChange: { prompt: string; tokens: number[] };
@@ -103,7 +104,12 @@
   }
 </script>
 
-<div class="bg-white border border-hairline rounded shadow-subtle">
+<div
+  id="panel-controls"
+  class={`bg-white border rounded shadow-subtle transition-all duration-300 ${
+    highlighted ? 'border-amber-500 ring-2 ring-amber-400/70' : 'border-hairline'
+  }`}
+>
   <div class="p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
   <!-- Left: Sleek Prompt Input & Presets -->
   <div class="flex-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">

@@ -80,6 +80,13 @@ test.describe('workbench smoke test', () => {
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole('button', { name: 'Act 2 · Experiment' })).not.toBeVisible();
 
+    // Guided 3-step strip: clicking another head first, then step 2 re-selects L5:H4 and highlights Circuit Map
+    await page.getByRole('button', { name: /^0:0/ }).click();
+    await expect(page.getByText('Head L0:H0 Switched Off')).toBeVisible();
+    await page.getByRole('button', { name: /2\.\s*Tap the darkest square in the Circuit Map \(L5:H4\)\./ }).click();
+    await expect(page.getByText('Head L5:H4 Switched Off')).toBeVisible();
+    await expect(page.locator('#panel-circuit-map')).toHaveClass(/ring-amber-400/);
+
     const docOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );

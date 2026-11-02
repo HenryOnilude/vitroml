@@ -17,6 +17,13 @@
   export let importance: (number | null)[][] | null = null;
   export let tokens: number[] = [1];
   export let activePos: number = 0;
+  export let highlightedTarget: 'controls' | 'circuit' | 'result' | null = null;
+
+  export function selectHead(layer: number, head: number) {
+    selectedLayer = layer;
+    selectedHead = head;
+    runAblation(layer, head, activePos, tokens);
+  }
 
   const dispatch = createEventDispatcher<{
     headHover: { layer: number; head: number | null };
@@ -96,12 +103,18 @@
     {ablatedHead}
     {currentActiveLayer}
     {importance}
+    highlighted={highlightedTarget === 'circuit'}
     on:select={handleHeadSelected}
     on:hover={handleHeadHover}
   />
 
   <!-- Comparison Results Panel with Causal Storytelling Banner -->
-  <div class="bg-white border border-hairline rounded p-3.5 shadow-subtle">
+  <div
+    id="panel-experiment-result"
+    class={`bg-white border rounded p-3.5 shadow-subtle transition-all duration-300 ${
+      highlightedTarget === 'result' ? 'border-amber-500 ring-2 ring-amber-400/70' : 'border-hairline'
+    }`}
+  >
     <!-- Header with High-Contrast Typography -->
     <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
       <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { parseCheckpoint } from './engine/loader';
   import { parseTokenizer, type Tokenizer } from './engine/tokenizer';
   import type { ModelConfig, ModelWeights } from './engine/model';
@@ -41,6 +41,34 @@
 
   // Mobile act switcher: on <lg only one column is visible at a time
   let mobileAct: 1 | 2 = 1;
+  let highlightedTarget: 'controls' | 'circuit' | 'result' | null = null;
+  let highlightTimer: ReturnType<typeof setTimeout> | null = null;
+  let interventionRef: InterventionPanel | null = null;
+
+  async function handleGuideStep(event: CustomEvent<1 | 2 | 3>) {
+    const step = event.detail;
+    if (step === 2 || step === 3) {
+      mobileAct = 2;
+    }
+    if (step === 2) {
+      interventionRef?.selectHead(5, 4);
+    }
+    const targetMap = {
+      1: { key: 'controls' as const, id: 'panel-controls' },
+      2: { key: 'circuit' as const, id: 'panel-circuit-map' },
+      3: { key: 'result' as const, id: 'panel-experiment-result' },
+    }[step];
+
+    highlightedTarget = targetMap.key;
+    if (highlightTimer) clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(() => {
+      highlightedTarget = null;
+    }, 2000);
+
+    await tick();
+    const el = document.getElementById(targetMap.id);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   let stateStore: ForwardController['state'] | null = null;
   $: stateStore = controller ? controller.state : null;
@@ -284,7 +312,7 @@
       <!-- Unified Architectural Layout (Zero Fluff) -->
       <div class="space-y-3">
         <!-- 0. Hero: what this is and what you can do with it -->
-        <HeroSection />
+        <HeroSection on:guideStep={handleGuideStep} />
 
         <!-- 1. Interactive Control Strip -->
         <WorkbenchToolbar
@@ -293,6 +321,7 @@
           promptText="Once upon a time"
           {currentPos}
           {generatedTokens}
+          highlighted={highlightedTarget === 'controls'}
           on:tokensChange={handleTokensChange}
           on:advance={handleAdvance}
           on:userPlay={() => (autoGen = true)}
@@ -367,6 +396,7 @@
               <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
             </div>
             <InterventionPanel
+              bind:this={interventionRef}
               {config}
               {weights}
               {tokenizer}
@@ -374,6 +404,7 @@
               importance={headImportance}
               tokens={inputSequence}
               activePos={currentPos}
+              {highlightedTarget}
               on:headHover={handleHeadHover}
             />
           </div>
