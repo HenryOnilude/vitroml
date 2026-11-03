@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 
+  export let step2Label: string = 'Tap the darkest square in the Circuit Map.';
+
   const dispatch = createEventDispatcher<{
     guideStep: 1 | 2 | 3;
   }>();
@@ -44,7 +46,7 @@
         <span class="text-hairline-bright">·</span>
         <span>32k words</span>
         <span class="text-hairline-bright">·</span>
-        <span>runs locally, no server</span>
+        <span>Runs in your browser, nothing is sent to a server</span>
       </div>
     </div>
 
@@ -67,7 +69,7 @@
         class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">2.</span>
-        <span class="text-slate-900 group-hover:text-ink">Tap the darkest square in the Circuit Map (L5:H4).</span>
+        <span class="text-slate-900 group-hover:text-ink">{step2Label}</span>
       </button>
       <button
         type="button"

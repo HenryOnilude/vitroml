@@ -22,6 +22,11 @@ export interface AblationComparisonResult {
   testedPiece: string;
   baselineTop5: TokenPrediction[];
   ablatedTop5: TokenPrediction[];
+  /** softmax probability of the baseline top token under each run */
+  baselineTopProb: number;
+  ablatedTopProb: number;
+  /** baseline top-3 tokens with softmax probability under each run (paired bars) */
+  top3Pairs: { tokenId: number; tokenPiece: string; baselineProb: number; ablatedProb: number }[];
   l2Diff: number;
   maxAbsDiff: number;
   predictionFlipped: boolean;
@@ -277,6 +282,24 @@ export function compareHeadAblation(
   const ablatedTop = ablatedTop5[0];
   const predictionFlipped = baselineTop.tokenId !== ablatedTop.tokenId;
 
+  // Softmax probabilities of the baseline top token and top-3 pairs for the
+  // plain-English result view (confidence drop + before/after bars).
+  const probOf = (logits: number[], id: number): number => {
+    let max = -Infinity;
+    for (const v of logits) if (v > max) max = v;
+    let sum = 0;
+    for (const v of logits) sum += Math.exp(v - max);
+    return Math.exp(logits[id] - max) / sum;
+  };
+  const baselineTopProb = probOf(baselineLogits, baselineTop.tokenId);
+  const ablatedTopProb = probOf(ablatedLogits, baselineTop.tokenId);
+  const top3Pairs = baselineTop5.slice(0, 3).map((t) => ({
+    tokenId: t.tokenId,
+    tokenPiece: t.tokenPiece,
+    baselineProb: probOf(baselineLogits, t.tokenId),
+    ablatedProb: probOf(ablatedLogits, t.tokenId),
+  }));
+
   return {
     targetLayer,
     targetHead,
@@ -285,6 +308,9 @@ export function compareHeadAblation(
     testedPiece,
     baselineTop5,
     ablatedTop5,
+    baselineTopProb,
+    ablatedTopProb,
+    top3Pairs,
     l2Diff,
     maxAbsDiff,
     predictionFlipped,

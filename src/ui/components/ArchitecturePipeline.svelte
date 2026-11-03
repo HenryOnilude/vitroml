@@ -102,6 +102,7 @@
       <span class="text-xs font-mono font-bold text-ink max-w-[72px] truncate">
         {inputPiece ? `"${inputPiece}"` : `Tok ${currentToken}`}
       </span>
+      <span class="text-[9px] font-mono text-ink-muted">id {currentToken}</span>
     </div>
 
     <!-- 2. Embedding Node -->

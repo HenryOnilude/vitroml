@@ -7,6 +7,9 @@ test.describe('workbench smoke test', () => {
 
     await expect(page.getByText('Execution Pipeline')).toBeVisible();
     await expect(page.getByText('Attention Field', { exact: true })).toBeVisible();
+    // Act 2 starts collapsed behind the teaser card
+    await expect(page.getByText('Now try breaking it')).toBeVisible();
+    await page.getByText('Now try breaking it').click();
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible();
     // Token tape starts with the BOS chip
     await expect(page.getByText('⟨s⟩').first()).toBeVisible();
@@ -52,8 +55,10 @@ test.describe('workbench smoke test', () => {
     await expect(page.getByRole('button', { name: 'Act 2 · Experiment' })).toBeVisible();
     await expect(page.getByText('Circuit Map', { exact: true })).not.toBeVisible();
 
-    // Switch to Act 2
+    // Switch to Act 2 (teaser card first, then the real panel)
     await page.getByRole('button', { name: 'Act 2 · Experiment' }).click();
+    await expect(page.getByText('Now try breaking it')).toBeVisible();
+    await page.getByText('Now try breaking it').click();
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible();
     await expect(page.getByText('Working Vector')).not.toBeVisible();
 
@@ -77,15 +82,18 @@ test.describe('workbench smoke test', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await expect(page.getByText('Working Vector')).toBeVisible({ timeout: 30_000 });
+    // Act 2 opens beside Act 1 on desktop once the teaser is clicked
+    await page.getByText('Now try breaking it').click();
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole('button', { name: 'Act 2 · Experiment' })).not.toBeVisible();
 
-    // Guided 3-step strip: clicking another head first, then step 2 re-selects L5:H4 and highlights Circuit Map
+    // Guided 3-step strip: step 2 runs the curated head for the default prompt
     await page.getByRole('button', { name: /^0:0/ }).click();
     await expect(page.getByText('Head L0:H0 Switched Off')).toBeVisible();
-    await page.getByRole('button', { name: /2\.\s*Tap the darkest square in the Circuit Map \(L5:H4\)\./ }).click();
-    await expect(page.getByText('Head L5:H4 Switched Off')).toBeVisible();
+    await page.getByRole('button', { name: /2\.\s*Switch off L0:H1/ }).click();
+    await expect(page.getByText('Head L0:H1 Switched Off')).toBeVisible();
     await expect(page.locator('#panel-circuit-map')).toHaveClass(/ring-amber-400/);
+    await expect(page.getByText('Now try another square.')).toBeVisible();
 
     const docOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth

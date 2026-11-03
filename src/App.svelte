@@ -41,6 +41,37 @@
 
   // Mobile act switcher: on <lg only one column is visible at a time
   let mobileAct: 1 | 2 = 1;
+
+  // Act 2 reveal: collapsed teaser until clicked or the first playthrough ends
+  let act2Open = false;
+  let act2Hint = false;
+  let seenFirstComplete = false;
+  let showTryAnother = false;
+  $: if ($stateStore?.status === 'completed' && !seenFirstComplete) {
+    seenFirstComplete = true;
+    if (!act2Open) act2Hint = true;
+  }
+  function openAct2() {
+    act2Open = true;
+    act2Hint = false;
+  }
+
+  // Curated example: per-preset head whose ablation changes the guess (from the
+  // sweep). "Once upon a time" has no flipping head, so its biggest confidence
+  // drop is used instead and said so. Fallback is the sweep's strongest head.
+  const CURATED_HEADS: Record<string, { layer: number; head: number; flipped: boolean }> = {
+    'Once upon a time': { layer: 0, head: 1, flipped: false },
+    'The little girl saw a bird': { layer: 5, head: 3, flipped: true },
+  };
+  let currentPrompt = 'Once upon a time';
+  $: curated = CURATED_HEADS[currentPrompt] ?? { layer: 5, head: 4, flipped: false };
+  $: curatedKnown = currentPrompt in CURATED_HEADS;
+  $: step2Label = curated.flipped
+    ? `Switch off L${curated.layer}:H${curated.head}, the head that changes the answer.`
+    : curatedKnown
+    ? `Switch off L${curated.layer}:H${curated.head}, the biggest lever on this guess.`
+    : `Switch off L${curated.layer}:H${curated.head}, the biggest lever we found.`;
+
   let highlightedTarget: 'controls' | 'circuit' | 'result' | null = null;
   let highlightTimer: ReturnType<typeof setTimeout> | null = null;
   let interventionRef: InterventionPanel | null = null;
@@ -55,9 +86,12 @@
     const step = event.detail;
     if (step === 2 || step === 3) {
       mobileAct = 2;
+      openAct2();
+      await tick();
     }
     if (step === 2) {
-      interventionRef?.selectHead(5, 4);
+      interventionRef?.selectHead(curated.layer, curated.head);
+      showTryAnother = true;
     }
     const targetMap = {
       1: { key: 'controls' as const, id: 'panel-controls' },
@@ -254,6 +288,7 @@
 
   function handleTokensChange(event: CustomEvent<{ prompt: string; tokens: number[] }>) {
     currentTokens = event.detail.tokens;
+    currentPrompt = event.detail.prompt;
     resetGenerationState();
     if (controller && !isLoading) {
       controller.start(1, 0); // BOS at position 0, llama2.c generate() convention
@@ -318,7 +353,7 @@
       <!-- Unified Architectural Layout (Zero Fluff) -->
       <div class="space-y-3">
         <!-- 0. Hero: what this is and what you can do with it -->
-        <HeroSection on:guideStep={handleGuideStep} />
+        <HeroSection {step2Label} on:guideStep={handleGuideStep} />
 
         <!-- 1. Interactive Control Strip -->
         <WorkbenchToolbar
@@ -402,18 +437,51 @@
               <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
               <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
             </div>
-            <InterventionPanel
-              bind:this={interventionRef}
-              {config}
-              {weights}
-              {tokenizer}
-              {currentActiveLayer}
-              importance={headImportance}
-              tokens={inputSequence}
-              activePos={currentPos}
-              {highlightedTarget}
-              on:headHover={handleHeadHover}
-            />
+            {#if !act2Open}
+              <button
+                type="button"
+                id="panel-act2-teaser"
+                on:click={openAct2}
+                class={`w-full text-left bg-white border rounded p-4 shadow-subtle transition-all duration-300 hover:border-amber-400 ${
+                  act2Hint ? 'ring-2 ring-amber-400/70 border-amber-400 animate-pulse' : 'border-hairline'
+                }`}
+              >
+                <span class="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-accent-bronze">Act 2</span>
+                <span class="block text-sm font-bold text-ink font-serif mt-1">Now try breaking it</span>
+                <span class="block text-[11px] text-ink-secondary font-sans mt-0.5">
+                  {#if act2Hint}
+                    Now switch a head off and see what changes.
+                  {:else}
+                    Switch one attention head off and see what changes.
+                  {/if}
+                </span>
+              </button>
+            {:else}
+              {#if showTryAnother}
+                <div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                  <span class="text-[10px] font-sans font-medium text-amber-900">Now try another square.</span>
+                  <button
+                    type="button"
+                    on:click={() => (showTryAnother = false)}
+                    class="text-amber-700 hover:text-amber-950 text-[10px] font-mono font-bold px-1"
+                    aria-label="Dismiss hint"
+                  >✕</button>
+                </div>
+              {/if}
+              <InterventionPanel
+                bind:this={interventionRef}
+                {config}
+                {weights}
+                {tokenizer}
+                {currentActiveLayer}
+                importance={headImportance}
+                tokens={inputSequence}
+                activePos={currentPos}
+                {highlightedTarget}
+                on:headHover={handleHeadHover}
+                on:headSelect={() => (showTryAnother = false)}
+              />
+            {/if}
           </div>
         </div>
       </div>

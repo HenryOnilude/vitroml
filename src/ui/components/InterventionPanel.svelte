@@ -7,7 +7,6 @@
     type AblationComparisonResult,
   } from '../../engine/analysis';
   import HeadGrid from './HeadGrid.svelte';
-  import LogitWaterfall from './LogitWaterfall.svelte';
 
   export let config: ModelConfig | null = null;
   export let weights: ModelWeights | null = null;
@@ -27,6 +26,7 @@
 
   const dispatch = createEventDispatcher<{
     headHover: { layer: number; head: number | null };
+    headSelect: { layer: number; head: number };
   }>();
 
   let selectedLayer: number = 5;
@@ -86,6 +86,7 @@
   function handleHeadSelected(event: CustomEvent<{ layer: number; head: number }>) {
     selectedLayer = event.detail.layer;
     selectedHead = event.detail.head;
+    dispatch('headSelect', event.detail);
     runAblation(selectedLayer, selectedHead, activePos, tokens);
   }
 
@@ -149,83 +150,99 @@
     </details>
 
     {#if comparisonResult}
+      {@const maxProb = Math.max(...comparisonResult.top3Pairs.flatMap((p) => [p.baselineProb, p.ablatedProb]), 0.01)}
       <div class="space-y-2.5 transition-all duration-200">
-        <!-- Causal Storytelling Banner (Explaining the Cause -> Effect) -->
-        <div class={`rounded p-2 text-xs font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-2 border ${
+        <!-- Plain-English verdict -->
+        <div class={`rounded p-2 text-xs font-sans border ${
           comparisonResult.predictionFlipped
             ? 'bg-orange-50 border-accent-rust shadow-sm'
             : 'bg-canvas-elevated border-hairline'
         }`}>
-          <div class="flex items-center gap-2">
-            <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${comparisonResult.predictionFlipped ? 'bg-accent-rust' : 'bg-slate-300'}`}></span>
-            <span class="text-ink-secondary">
-              {#if comparisonResult.predictionFlipped}
-                Switching off head <strong>L{selectedLayer}:H{selectedHead}</strong> flips the top guess from
-                <strong class="text-ink font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong> to
-                <strong class="text-accent-rust font-mono">"{comparisonResult.ablatedTop.tokenPiece.trim()}"</strong>.
-              {:else}
-                The model still guesses <strong class="text-ink font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>, but head <strong>L{selectedLayer}:H{selectedHead}</strong> shifts its score by
-                <span class="font-mono text-ink font-semibold">
-                  {comparisonResult.ablatedTop.delta !== undefined && comparisonResult.ablatedTop.delta >= 0 ? '+' : ''}{comparisonResult.ablatedTop.delta?.toFixed(2)}
-                </span>
-                (total shift Δ = {comparisonResult.l2Diff.toFixed(1)}).
-              {/if}
-            </span>
-          </div>
-
-          <span class="font-mono text-[10px] font-bold shrink-0 text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
-            Tested on pos {comparisonResult.testedPos} "{comparisonResult.testedPiece.trim() || '<s>'}"
+          <span class={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${comparisonResult.predictionFlipped ? 'bg-accent-rust' : 'bg-slate-300'}`}></span>
+          <span class="text-ink">
+            With <strong class="font-mono">L{selectedLayer}:H{selectedHead}</strong> off, the model
+            {#if comparisonResult.predictionFlipped}
+              says <strong class="font-mono">"{comparisonResult.ablatedTop.tokenPiece.trim()}"</strong>
+              instead of <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>.
+            {:else if comparisonResult.ablatedTopProb < comparisonResult.baselineTopProb}
+              still says <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
+              but its confidence dropped from {(comparisonResult.baselineTopProb * 100).toFixed(0)}%
+              to {(comparisonResult.ablatedTopProb * 100).toFixed(0)}%.
+            {:else}
+              still says <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
+              and its confidence barely moved
+              ({(comparisonResult.baselineTopProb * 100).toFixed(0)}% → {(comparisonResult.ablatedTopProb * 100).toFixed(0)}%).
+            {/if}
           </span>
         </div>
 
-        <!-- Metrics Bar with High-Contrast Bold Text -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono">
-          <div
-            class="bg-canvas-elevated border border-hairline rounded p-1.5"
-            title="Total change across all 32,000 output scores when this head is switched off"
-          >
-            <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Total Shift Δ</div>
-            <div class="text-base font-bold text-ink mt-0.5">
-              {comparisonResult.l2Diff.toFixed(2)}
-            </div>
+        <!-- Paired before/after bars: baseline top-3, same order and scale -->
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-3 text-[9px] font-mono font-bold uppercase tracking-wider text-ink-muted">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-[1px] bg-slate-400"></span>before</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-[1px] bg-amber-600"></span>after</span>
           </div>
-
-          <div
-            class="bg-canvas-elevated border border-hairline rounded p-1.5"
-            title="Largest change to any single token's score"
-          >
-            <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Biggest Hit</div>
-            <div class="text-base font-bold text-accent-rust mt-0.5">
-              {comparisonResult.maxAbsDiff.toFixed(2)}
+          {#each comparisonResult.top3Pairs as pair}
+            <div class="space-y-0.5">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-sans font-bold text-ink">"{pair.tokenPiece.trim()}"</span>
+                <span class="font-mono text-[10px] text-ink-muted">{(pair.baselineProb * 100).toFixed(0)}% → {(pair.ablatedProb * 100).toFixed(0)}%</span>
+              </div>
+              <div class="h-1.5 bg-canvas-elevated rounded-full overflow-hidden">
+                <div class="h-full bg-slate-400 rounded-full" style={`width: ${(pair.baselineProb / maxProb) * 100}%`}></div>
+              </div>
+              <div class="h-1.5 bg-canvas-elevated rounded-full overflow-hidden">
+                <div class="h-full bg-amber-600 rounded-full" style={`width: ${(pair.ablatedProb / maxProb) * 100}%`}></div>
+              </div>
             </div>
-          </div>
-
-          <div
-            class="bg-canvas-elevated border border-hairline rounded p-1.5"
-            title="Each head owns 48 of the 288 vector channels. Switching it off zeroes these numbers"
-          >
-            <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Channels Cut</div>
-            <div class="text-xs font-bold text-ink-secondary mt-1">
-              {comparisonResult.targetHead * 48}..{(comparisonResult.targetHead + 1) * 48 - 1}
-            </div>
-          </div>
-
-          <div
-            class="bg-canvas-elevated border border-hairline rounded p-1.5"
-            title={`Tested on position ${comparisonResult.testedPos} ("${comparisonResult.testedPiece.trim() || '<s>'}") across the full sequence of words seen so far.`}
-          >
-            <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Tested On</div>
-            <div class="text-xs font-bold text-ink-secondary mt-1 truncate">
-              pos {comparisonResult.testedPos} ({comparisonResult.testedPiece.trim() || '<s>'})
-            </div>
-          </div>
+          {/each}
         </div>
 
-        <!-- Diverging Waterfall Delta Plot -->
-        <LogitWaterfall
-          ablatedTop5={comparisonResult.ablatedTop5}
-          baselineTop5={comparisonResult.baselineTop5}
-        />
+        <!-- Technical metrics, collapsed -->
+        <details class="text-xs">
+          <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">Details</summary>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono mt-1.5">
+            <div
+              class="bg-canvas-elevated border border-hairline rounded p-1.5"
+              title="Total change across all 32,000 output scores when this head is switched off"
+            >
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Total Shift Δ</div>
+              <div class="text-base font-bold text-ink mt-0.5">
+                {comparisonResult.l2Diff.toFixed(2)}
+              </div>
+            </div>
+
+            <div
+              class="bg-canvas-elevated border border-hairline rounded p-1.5"
+              title="Largest change to any single token's score"
+            >
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Biggest Hit</div>
+              <div class="text-base font-bold text-accent-rust mt-0.5">
+                {comparisonResult.maxAbsDiff.toFixed(2)}
+              </div>
+            </div>
+
+            <div
+              class="bg-canvas-elevated border border-hairline rounded p-1.5"
+              title="Each head owns 48 of the 288 vector channels. Switching it off zeroes these numbers"
+            >
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Channels Cut</div>
+              <div class="text-xs font-bold text-ink-secondary mt-1">
+                {comparisonResult.targetHead * 48}..{(comparisonResult.targetHead + 1) * 48 - 1}
+              </div>
+            </div>
+
+            <div
+              class="bg-canvas-elevated border border-hairline rounded p-1.5"
+              title={`Tested on position ${comparisonResult.testedPos} ("${comparisonResult.testedPiece.trim() || '<s>'}") across the full sequence of words seen so far.`}
+            >
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Tested On</div>
+              <div class="text-xs font-bold text-ink-secondary mt-1 truncate">
+                pos {comparisonResult.testedPos} ({comparisonResult.testedPiece.trim() || '<s>'})
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     {/if}
   </div>

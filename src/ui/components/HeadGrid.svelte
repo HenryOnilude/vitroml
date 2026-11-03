@@ -76,7 +76,7 @@
   </div>
 
   <p class="text-xs font-sans font-medium text-slate-900 mb-1">
-    Click a square to switch that head off.
+    Each square is one attention head. Darker = switching it off changes the output more.
   </p>
   <details class="text-xs mb-2">
     <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
