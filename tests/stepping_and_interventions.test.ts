@@ -76,6 +76,76 @@ describe('Stepping (forwardPass generator)', () => {
   });
 });
 
+describe('Step write attribution', () => {
+  it('per-head attention writes and the ffn write sum to each step\'s residual change', () => {
+    const { config, weights } = createMockModel();
+
+    // Give the mock real non-zero weights so contributions aren't trivially zero.
+    const fill = (t: Tensor, scale = 0.02) => {
+      for (let i = 0; i < t.data.length; i++) {
+        t.data[i] = (((i * 7) % 13) - 6) * scale;
+      }
+    };
+    for (const l of [0, 1]) {
+      fill(weights.wq[l]);
+      fill(weights.wk[l]);
+      fill(weights.wv[l]);
+      fill(weights.wo[l]);
+      fill(weights.w1[l], 0.01);
+      fill(weights.w2[l], 0.01);
+      fill(weights.w3[l], 0.01);
+    }
+
+    const buffers = createRunBuffers(config);
+    const gen = forwardPass(0, 0, config, weights, buffers);
+
+    // Initial residual is the embedding row for token 0.
+    let prevResidual = Float32Array.from(
+      weights.tokenEmbeddingTable.data.subarray(0, config.dim)
+    );
+
+    let maxDiscrepancy = 0;
+    let headSteps = 0;
+    let ffnSteps = 0;
+
+    let res = gen.next();
+    while (!res.done) {
+      const step = res.value;
+      expect(step.writes).toBeDefined();
+      const write = step.writes!;
+
+      if (write.kind === 'heads') {
+        headSteps++;
+        expect(write.vecs.length).toBe(config.nHeads);
+      } else {
+        ffnSteps++;
+        expect(write.vecs.length).toBe(1);
+      }
+
+      const resPost = step.residual.data.subarray(
+        step.residual.offset,
+        step.residual.offset + config.dim
+      );
+      for (let i = 0; i < config.dim; i++) {
+        let sum = 0;
+        for (const v of write.vecs) sum += v[i];
+        const actualDelta = resPost[i] - prevResidual[i];
+        maxDiscrepancy = Math.max(maxDiscrepancy, Math.abs(sum - actualDelta));
+      }
+
+      prevResidual = Float32Array.from(resPost);
+      res = gen.next();
+    }
+
+    expect(headSteps).toBe(config.nLayers);
+    expect(ffnSteps).toBe(config.nLayers);
+    // Sum is exact in principle; only float32 accumulation ordering differs.
+    // Measured discrepancy stays well under 1e-5 — log it for honesty.
+    console.log(`attribution sum-vs-Δx max discrepancy: ${maxDiscrepancy.toExponential(3)}`);
+    expect(maxDiscrepancy).toBeLessThan(1e-5);
+  });
+});
+
 describe('ForwardController', () => {
   it('steps and auto-plays to completion with scheduler', async () => {
     const { config, weights } = createMockModel();

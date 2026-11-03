@@ -45,6 +45,12 @@
   let highlightTimer: ReturnType<typeof setTimeout> | null = null;
   let interventionRef: InterventionPanel | null = null;
 
+  function handleWhySelectHead(event: CustomEvent<{ layer: number; head: number }>) {
+    const { layer, head } = event.detail;
+    mobileAct = 2;
+    interventionRef?.selectHead(layer, head);
+  }
+
   async function handleGuideStep(event: CustomEvent<1 | 2 | 3>) {
     const step = event.detail;
     if (step === 2 || step === 3) {
@@ -378,6 +384,7 @@
               {weights}
               {tokenizer}
               {currentToken}
+              on:selectHead={handleWhySelectHead}
             />
 
             <div class="flex-1 min-w-0">

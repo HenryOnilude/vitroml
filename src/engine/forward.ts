@@ -43,12 +43,26 @@ export function createRunBuffers(config: ModelConfig): RunBuffers {
 
 export type StepPhase = 'post-attention' | 'post-ffn';
 
+/**
+ * Decomposition of this phase's residual write.
+ * For 'heads': vecs[h] = head h output (48-d slice) projected through its
+ * matching row-block of Wo → 288-d vector. Sum(vecs) = the attention write.
+ * For 'ffn': vecs[0] = the 288-d FFN write.
+ * Sum(vecs) always equals this step's Δ residual (up to float reordering).
+ */
+export interface StepWrite {
+  kind: 'heads' | 'ffn';
+  layer: number;
+  vecs: Float32Array[];
+}
+
 export interface StepState {
   layer: number;
   phase: StepPhase;
   position: number;
   residual: Tensor;             // snapshot clone of current residual x
   attentionScores?: Tensor;     // snapshot clone of attention scores for layer (if post-attention)
+  writes?: StepWrite;           // per-contributor decomposition of this phase's residual write
 }
 
 export interface FinalResult {
@@ -190,6 +204,27 @@ export function* forwardPass(
       xb = buffers.xb;
     }
 
+    // Per-head writes through Wo: head slice (48-d) x its row-block of Wo.
+    // Sum over heads equals the full xb2 projection — snapshot for attribution.
+    const headWrites: Float32Array[] = [];
+    {
+      const woData = weights.wo[l].data;
+      const woOff = weights.wo[l].offset;
+      for (let h = 0; h < nHeads; h++) {
+        const vec = new Float32Array(dim);
+        const hOff = xb.offset + h * headSize;
+        for (let j = 0; j < dim; j++) {
+          const row = woOff + j * dim + h * headSize;
+          let acc = 0;
+          for (let i = 0; i < headSize; i++) {
+            acc += woData[row + i] * xb.data[hOff + i];
+          }
+          vec[j] = acc;
+        }
+        headWrites.push(vec);
+      }
+    }
+
     // 6. Attention output projection Wo @ xb -> xb2
     matmul(buffers.xb2, xb, weights.wo[l], dim, dim);
 
@@ -220,6 +255,7 @@ export function* forwardPass(
       position: pos,
       residual: x.clone(),
       attentionScores: buffers.att.clone(),
+      writes: { kind: 'heads', layer: l, vecs: headWrites },
     };
 
     // 8. FFN RMSNorm: rmsnorm(xb, x, rmsFfnWeight[l])
@@ -294,6 +330,11 @@ export function* forwardPass(
       phase: 'post-ffn',
       position: pos,
       residual: x.clone(),
+      writes: {
+        kind: 'ffn',
+        layer: l,
+        vecs: [Float32Array.from(xb.data.subarray(xb.offset, xb.offset + dim))],
+      },
     };
   }
 

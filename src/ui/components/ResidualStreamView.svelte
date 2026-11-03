@@ -1,9 +1,14 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import type { Tensor } from '../../engine/tensor';
   import type { StepState } from '../../engine/forward';
   import type { ModelConfig, ModelWeights } from '../../engine/model';
   import type { Tokenizer } from '../../engine/tokenizer';
-  import { computeLogitLens, type TokenPrediction } from '../../engine/analysis';
+  import { computeLogitLens, attributeStepWrites, type TokenPrediction } from '../../engine/analysis';
+
+  const dispatch = createEventDispatcher<{
+    selectHead: { layer: number; head: number };
+  }>();
 
   export let stepState: StepState | null = null;
   export let highlightedHead: number | null = null;
@@ -200,6 +205,25 @@
     if (!prev || !curr) return null;
     return curr.logit - prev.logit;
   }
+
+  // "Why did the guess change?" — attribute this step's write across contributors
+  $: why = (() => {
+    if (!stepState?.writes || !config || !weights || !latestLens || latestLens.top.length === 0) {
+      return null;
+    }
+    const target = latestLens.top[0];
+    const attrs = attributeStepWrites(stepState.writes, stepState.residual, target.tokenId, weights, config.dim);
+    const total = attrs.reduce((s, a) => s + a.effect, 0);
+    const movers = [...attrs].sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect)).slice(0, 2);
+    return {
+      phaseLabel: `L${stepState.writes.layer} ${stepState.writes.kind === 'heads' ? 'attention' : 'FFN'}`,
+      guessPiece: target.tokenPiece.trim(),
+      flipped: prevLens !== null && prevLens.top[0]?.tokenId !== target.tokenId,
+      total,
+      movers,
+      isFfn: stepState.writes.kind === 'ffn',
+    };
+  })();
 </script>
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col justify-between">
@@ -446,6 +470,31 @@
             </span>
           {/each}
         </div>
+      {/if}
+
+      <!-- Why did the guess change? — per-contributor attribution of this step's write -->
+      {#if why}
+        <p class="mt-1 text-[10px] font-sans font-medium text-slate-700 leading-snug">
+          <span class="font-bold text-slate-900">Why?</span>
+          <strong class="font-mono">{why.phaseLabel}</strong>
+          {why.flipped ? 'flipped the guess to' : `pushed "${why.guessPiece}" ${why.total >= 0 ? 'up' : 'down'}`}
+          {#if why.flipped}<strong class="font-mono">"{why.guessPiece}"</strong>{/if}
+          ({why.total >= 0 ? '+' : ''}{why.total.toFixed(1)}).
+          {#if !why.isFfn && why.movers.length > 0}
+            Biggest push: {#each why.movers as m, i}{i > 0 ? ', ' : ''}<button
+              type="button"
+              on:click={() => dispatch('selectHead', { layer: m.layer, head: m.head })}
+              class="font-mono font-bold text-accent-bronze underline decoration-dotted underline-offset-2 hover:text-ink transition-colors"
+              title="Select this head in the Circuit Map"
+            >head L{m.layer}:H{m.head}</button> ({m.effect >= 0 ? '+' : ''}{m.effect.toFixed(1)}){/each}.
+          {:else if why.isFfn}
+            Sole contributor: the layer's memory lookup.
+          {/if}
+          <span
+            class="text-ink-muted cursor-help border-b border-dotted border-ink-muted"
+            title="Approximate attribution: linearized through the final norm with its scale frozen. It suggests where the change came from — switching the head off tests it."
+          >approx.</span>
+        </p>
       {/if}
     {:else}
       <p class="mt-2 text-slate-800 font-medium leading-relaxed">Step the model forward. After each stage, this vector is scored against the vocabulary and the model's top guess appears here, evolving with depth</p>

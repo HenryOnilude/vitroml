@@ -1,4 +1,4 @@
-import { forward, createRunBuffers } from './forward';
+import { forward, createRunBuffers, type StepWrite } from './forward';
 import type { ModelConfig, ModelWeights } from './model';
 import { HookRegistry } from './hooks';
 import { zeroAblateHead } from './interventions';
@@ -78,6 +78,57 @@ export function computeLogitLens(
     tokenPiece: tokenizer.decode(prevToken, item.idx),
     logit: item.logit,
   }));
+}
+
+export interface WriteAttribution {
+  /** 'head' for attention heads, 'ffn' for the feed-forward block */
+  kind: 'head' | 'ffn';
+  layer: number;
+  head: number;      // -1 for ffn
+  /** signed change to the target token's logit under the frozen RMS scale */
+  effect: number;
+}
+
+/**
+ * Direct-logit attribution of one step's residual write.
+ * Each contributor's 288-d write is projected through the final RMSNorm
+ * weight and the unembedding row for the target token, with the RMS scale
+ * frozen at the post-step residual value. Approximate: ignores how the
+ * step also rescales the prior residual via the new norm.
+ */
+export function attributeStepWrites(
+  write: StepWrite,
+  residualPost: Tensor,
+  targetTokenId: number,
+  weights: ModelWeights,
+  dim: number
+): WriteAttribution[] {
+  const xData = residualPost.data;
+  const xOff = residualPost.offset;
+  let ss = 0;
+  for (let i = 0; i < dim; i++) {
+    const v = xData[xOff + i];
+    ss += v * v;
+  }
+  const invRms = 1 / Math.sqrt(ss / dim + 1e-5);
+
+  const wCls = weights.wcls.data;
+  const clsRow = weights.wcls.offset + targetTokenId * dim;
+  const wNorm = weights.rmsFinalWeight.data;
+  const wNormOff = weights.rmsFinalWeight.offset;
+
+  return write.vecs.map((vec, i) => {
+    let effect = 0;
+    for (let d = 0; d < dim; d++) {
+      effect += vec[d] * wNorm[wNormOff + d] * wCls[clsRow + d];
+    }
+    return {
+      kind: write.kind === 'heads' ? 'head' : 'ffn',
+      layer: write.layer,
+      head: write.kind === 'heads' ? i : -1,
+      effect: effect * invRms,
+    };
+  });
 }
 
 /**
