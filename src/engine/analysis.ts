@@ -86,54 +86,97 @@ export function computeLogitLens(
 }
 
 export interface WriteAttribution {
-  /** 'head' for attention heads, 'ffn' for the feed-forward block */
-  kind: 'head' | 'ffn';
+  /** 'head' for attention heads, 'ffn' for the feed-forward block,
+   *  'rescale' for the RMS-norm rescale term (non-head contributor) */
+  kind: 'head' | 'ffn' | 'rescale';
   layer: number;
-  head: number;      // -1 for ffn
-  /** signed change to the target token's logit under the frozen RMS scale */
+  head: number;      // -1 for ffn and rescale
+  /** signed change to the compared logit quantity (logitA − logitB) */
   effect: number;
 }
 
 /**
- * Direct-logit attribution of one step's residual write.
- * Each contributor's 288-d write is projected through the final RMSNorm
- * weight and the unembedding row for the target token, with the RMS scale
- * frozen at the post-step residual value. Approximate: ignores how the
- * step also rescales the prior residual via the new norm.
+ * Exact logit-space attribution of one step's residual write, measured on the
+ * difference logit(tokenA) − logit(tokenB).
+ *
+ * With g = rmsFinalWeight ⊙ (wCls[A] − wCls[B]) and s(x) = sqrt(mean(x²) + eps),
+ * the lens quantity is L(x) = (x·g)/s(x). Since x_post = r_before + Σvecs,
+ *
+ *   L(x_post) − L(r_before)
+ *     = Σ_i (vec_i·g)/s_after  +  (r_before·g)(1/s_after − 1/s_before)
+ *
+ * The first term is decomposed per contributor (head or ffn); the second is
+ * returned as its own non-head contributor { kind: 'rescale' }, so the returned
+ * effects sum to the exact change in the logit difference (float reorder only).
  */
 export function attributeStepWrites(
   write: StepWrite,
   residualPost: Tensor,
-  targetTokenId: number,
+  tokenA: number,
+  tokenB: number,
   weights: ModelWeights,
   dim: number
 ): WriteAttribution[] {
-  const xData = residualPost.data;
-  const xOff = residualPost.offset;
-  let ss = 0;
-  for (let i = 0; i < dim; i++) {
-    const v = xData[xOff + i];
-    ss += v * v;
-  }
-  const invRms = 1 / Math.sqrt(ss / dim + 1e-5);
-
   const wCls = weights.wcls.data;
-  const clsRow = weights.wcls.offset + targetTokenId * dim;
+  const clsRowA = weights.wcls.offset + tokenA * dim;
+  const clsRowB = weights.wcls.offset + tokenB * dim;
   const wNorm = weights.rmsFinalWeight.data;
   const wNormOff = weights.rmsFinalWeight.offset;
 
-  return write.vecs.map((vec, i) => {
+  // g = rmsFinalWeight ⊙ (unembedding vector for the comparison A − B)
+  const g = new Float32Array(dim);
+  for (let d = 0; d < dim; d++) {
+    g[d] = wNorm[wNormOff + d] * (wCls[clsRowA + d] - wCls[clsRowB + d]);
+  }
+
+  const xData = residualPost.data;
+  const xOff = residualPost.offset;
+
+  // r_before = x_post − Σ vecs (residual-space closure of the write)
+  const rBefore = new Float32Array(dim);
+  for (let d = 0; d < dim; d++) {
+    let sum = xData[xOff + d];
+    for (const vec of write.vecs) sum -= vec[d];
+    rBefore[d] = sum;
+  }
+
+  const eps = 1e-5;
+  let ssPost = 0;
+  let ssBefore = 0;
+  for (let d = 0; d < dim; d++) {
+    ssPost += xData[xOff + d] * xData[xOff + d];
+    ssBefore += rBefore[d] * rBefore[d];
+  }
+  const invAfter = 1 / Math.sqrt(ssPost / dim + eps);
+  const invBefore = 1 / Math.sqrt(ssBefore / dim + eps);
+
+  const attrs: WriteAttribution[] = write.vecs.map((vec, i) => {
     let effect = 0;
     for (let d = 0; d < dim; d++) {
-      effect += vec[d] * wNorm[wNormOff + d] * wCls[clsRow + d];
+      effect += vec[d] * g[d];
     }
     return {
       kind: write.kind === 'heads' ? 'head' : 'ffn',
       layer: write.layer,
       head: write.kind === 'heads' ? i : -1,
-      effect: effect * invRms,
+      effect: effect * invAfter,
     };
   });
+
+  // Norm-rescale term: the step also re-scales the prior residual because the
+  // new RMS scale differs from the old one. Its own non-head contributor.
+  let rBeforeDotG = 0;
+  for (let d = 0; d < dim; d++) {
+    rBeforeDotG += rBefore[d] * g[d];
+  }
+  attrs.push({
+    kind: 'rescale',
+    layer: write.layer,
+    head: -1,
+    effect: rBeforeDotG * (invAfter - invBefore),
+  });
+
+  return attrs;
 }
 
 /**

@@ -206,24 +206,48 @@
     return curr.logit - prev.logit;
   }
 
-  // "Why did the guess change?" — attribute this step's write across contributors
+  // "Why did the guess change?" — attribute this step's write across contributors,
+  // measured on a logit DIFFERENCE: flipped → new top vs old top; same → top vs runner-up.
   $: why = (() => {
     if (!stepState?.writes || !config || !weights || !latestLens || latestLens.top.length === 0) {
       return null;
     }
-    const target = latestLens.top[0];
-    const attrs = attributeStepWrites(stepState.writes, stepState.residual, target.tokenId, weights, config.dim);
+    const newTop = latestLens.top[0];
+    const flipped = prevLens !== null && prevLens.top[0]?.tokenId !== newTop.tokenId;
+    const comparison = flipped ? prevLens.top[0] : latestLens.top[1];
+    if (!comparison) return null;
+    const attrs = attributeStepWrites(
+      stepState.writes,
+      stepState.residual,
+      newTop.tokenId,
+      comparison.tokenId,
+      weights,
+      config.dim
+    );
     const total = attrs.reduce((s, a) => s + a.effect, 0);
-    const movers = [...attrs].sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect)).slice(0, 2);
+    const sorted = [...attrs].sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect));
+    const leader = sorted[0] ?? null;
+    const totalSign = total === 0 ? Math.sign(leader?.effect ?? 1) : Math.sign(total);
+    const against =
+      leader !== null
+        ? sorted.slice(1).find(
+            (a) =>
+              Math.sign(a.effect) === -totalSign &&
+              Math.abs(a.effect) >= Math.abs(leader.effect) / 2
+          ) ?? null
+        : null;
     return {
       phaseLabel: `L${stepState.writes.layer} ${stepState.writes.kind === 'heads' ? 'attention' : 'FFN'}`,
-      guessPiece: target.tokenPiece.trim(),
-      flipped: prevLens !== null && prevLens.top[0]?.tokenId !== target.tokenId,
+      pieceA: newTop.tokenPiece.trim(),
+      pieceB: comparison.tokenPiece.trim(),
       total,
-      movers,
-      isFfn: stepState.writes.kind === 'ffn',
+      leader,
+      against,
     };
   })();
+
+  const attrLabel = (a: { kind: string; layer: number; head: number }): string =>
+    a.kind === 'head' ? `L${a.layer}:H${a.head}` : a.kind === 'ffn' ? 'the FFN' : 'norm rescale';
 </script>
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col justify-between">
@@ -477,23 +501,33 @@
         <p class="mt-1 text-[10px] font-sans font-medium text-slate-700 leading-snug">
           <span class="font-bold text-slate-900">Why?</span>
           <strong class="font-mono">{why.phaseLabel}</strong>
-          {why.flipped ? 'flipped the guess to' : `pushed "${why.guessPiece}" ${why.total >= 0 ? 'up' : 'down'}`}
-          {#if why.flipped}<strong class="font-mono">"{why.guessPiece}"</strong>{/if}
+          directly pushed <strong class="font-mono">"{why.pieceA}"</strong>
+          over <strong class="font-mono">"{why.pieceB}"</strong>
           ({why.total >= 0 ? '+' : ''}{why.total.toFixed(1)}).
-          {#if !why.isFfn && why.movers.length > 0}
-            Biggest push: {#each why.movers as m, i}{i > 0 ? ', ' : ''}<button
-              type="button"
-              on:click={() => dispatch('selectHead', { layer: m.layer, head: m.head })}
-              class="font-mono font-bold text-accent-bronze underline decoration-dotted underline-offset-2 hover:text-ink transition-colors"
-              title="Select this head in the Circuit Map"
-            >head L{m.layer}:H{m.head}</button> ({m.effect >= 0 ? '+' : ''}{m.effect.toFixed(1)}){/each}.
-          {:else if why.isFfn}
-            Sole contributor: the layer's memory lookup.
+          {#if why.leader}
+            Biggest push:
+            {#if why.leader.kind === 'head'}<button
+                type="button"
+                on:click={() => dispatch('selectHead', { layer: why.leader.layer, head: why.leader.head })}
+                class="font-mono font-bold text-accent-bronze underline decoration-dotted underline-offset-2 hover:text-ink transition-colors"
+                title="Select this head in the Circuit Map"
+              >L{why.leader.layer}:H{why.leader.head}</button>{:else}<strong class="font-mono">{attrLabel(why.leader)}</strong>{/if}
+            ({why.leader.effect >= 0 ? '+' : ''}{why.leader.effect.toFixed(1)}).
+          {/if}
+          {#if why.against}
+            held back by
+            {#if why.against.kind === 'head'}<button
+                type="button"
+                on:click={() => dispatch('selectHead', { layer: why.against.layer, head: why.against.head })}
+                class="font-mono font-bold text-accent-bronze underline decoration-dotted underline-offset-2 hover:text-ink transition-colors"
+                title="Select this head in the Circuit Map"
+              >L{why.against.layer}:H{why.against.head}</button>{:else}<strong class="font-mono">{attrLabel(why.against)}</strong>{/if}
+            ({why.against.effect.toFixed(1)}).
           {/if}
           <span
             class="text-ink-muted cursor-help border-b border-dotted border-ink-muted"
-            title="Approximate attribution: linearized through the final norm with its scale frozen. It suggests where the change came from — switching the head off tests it."
-          >approx.</span>
+            title="Exact: these contributions plus a norm-rescale term sum to the real change in this logit difference. Not proven: that each contributor caused the change — switching the head off tests it."
+          >exact.</span>
         </p>
       {/if}
     {:else}
