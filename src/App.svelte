@@ -458,14 +458,14 @@
           </button>
         </div>
 
-        <!-- 4. Dual Data Viewports: watch the computation (left), then intervene (right) -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
-          <div class={`flex-col gap-3 min-w-0 ${mobileAct === 1 ? 'flex' : 'hidden'} lg:flex`}>
-            <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-              <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Inside the computation</span>
-              <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
-              <span class="text-[10px] font-sans text-ink-muted">the same six heads appear in every view</span>
-            </div>
+        <!-- 4. Act 1: watch the computation with both instruments side by side -->
+        <div class={`space-y-3 min-w-0 ${mobileAct === 1 ? '' : 'hidden'} lg:block`}>
+          <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
+            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Inside the computation</span>
+            <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+            <span class="text-[10px] font-sans text-ink-muted">the same six heads appear in every view</span>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
             <ResidualStreamView
               stepState={$stateStore?.currentStep ?? null}
               highlightedHead={brushedHead}
@@ -479,72 +479,76 @@
               on:headFocus={handleLensHeadFocus}
             />
 
-            <div class="flex-1 min-w-0">
-              <AttentionMap
-                stepState={$stateStore?.currentStep ?? null}
-                {positionLabels}
-                highlightedHead={brushedHead}
-                severedHead={act2Open ? activeSeveredHead : null}
-                {focusMode}
-              />
-            </div>
+            <AttentionMap
+              stepState={$stateStore?.currentStep ?? null}
+              {positionLabels}
+              highlightedHead={brushedHead}
+              severedHead={act2Open ? activeSeveredHead : null}
+              {focusMode}
+            />
           </div>
+        </div>
 
-          <div class={`space-y-3 min-w-0 ${mobileAct === 2 ? '' : 'hidden'} lg:block`}>
-            <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-              <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Run the experiment</span>
-              <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
-              <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
-            </div>
-            {#if !act2Open}
-              <button
-                type="button"
-                id="panel-act2-teaser"
-                on:click={openAct2}
-                class={`w-full text-left bg-white border rounded p-4 shadow-subtle transition-all duration-300 hover:border-amber-400 ${
-                  act2Hint ? 'ring-2 ring-amber-400/70 border-amber-400 animate-pulse' : 'border-hairline'
-                }`}
-              >
+        <!-- 5. Act 2: the experiment, a full-width section below -->
+        <div class={`space-y-3 min-w-0 ${mobileAct === 2 ? '' : 'hidden'} lg:block`}>
+          <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
+            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Run the experiment</span>
+            <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+            <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
+          </div>
+          {#if !act2Open}
+            <button
+              type="button"
+              id="panel-act2-teaser"
+              on:click={openAct2}
+              class={`w-full flex items-center justify-between gap-4 text-left bg-white border rounded px-4 py-3.5 shadow-subtle transition-all duration-300 hover:border-amber-400 hover:shadow-md group ${
+                act2Hint ? 'ring-2 ring-amber-400/70 border-amber-400 animate-pulse' : 'border-hairline'
+              }`}
+            >
+              <span class="min-w-0">
                 <span class="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-accent-bronze">Act 2</span>
-                <span class="block text-sm font-bold text-ink font-serif mt-1">Now try breaking it</span>
+                <span class="block text-sm font-bold text-ink font-serif mt-0.5">Now try breaking it</span>
                 <span class="block text-[11px] text-ink-secondary font-sans mt-0.5">
                   {#if act2Hint}
-                    Now switch a head off and see what changes. (Click to open)
+                    Now switch a head off and see what changes.
                   {:else}
-                    Switch one attention head off and see what changes. (Click to open)
+                    Switch one attention head off and see what changes.
                   {/if}
                 </span>
-              </button>
-            {:else}
-              {#if showTryAnother}
-                <div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                  <span class="text-[10px] font-sans font-medium text-amber-900">Now try another square.</span>
-                  <button
-                    type="button"
-                    on:click={() => (showTryAnother = false)}
-                    class="text-amber-700 hover:text-amber-950 text-[10px] font-mono font-bold px-1"
-                    aria-label="Dismiss hint"
-                  >✕</button>
-                </div>
-              {/if}
-              <InterventionPanel
-                bind:this={interventionRef}
-                {config}
-                {weights}
-                {tokenizer}
-                {currentActiveLayer}
-                importance={headImportance}
-                tokens={inputSequence}
-                activePos={currentPos}
-                {highlightedTarget}
-                on:headHover={handleHeadHover}
-                on:headSelect={(e) => {
-                  activeSeveredHead = e.detail.head;
-                  showTryAnother = false;
-                }}
-              />
+              </span>
+              <span class="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold font-mono text-accent-bronze group-hover:text-amber-800 border border-amber-300 group-hover:border-amber-500 rounded px-3 py-2 transition-colors">
+                Open →
+              </span>
+            </button>
+          {:else}
+            {#if showTryAnother}
+              <div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                <span class="text-[10px] font-sans font-medium text-amber-900">Now try another square.</span>
+                <button
+                  type="button"
+                  on:click={() => (showTryAnother = false)}
+                  class="text-amber-700 hover:text-amber-950 text-[10px] font-mono font-bold px-1"
+                  aria-label="Dismiss hint"
+                >✕</button>
+              </div>
             {/if}
-          </div>
+            <InterventionPanel
+              bind:this={interventionRef}
+              {config}
+              {weights}
+              {tokenizer}
+              {currentActiveLayer}
+              importance={headImportance}
+              tokens={inputSequence}
+              activePos={currentPos}
+              {highlightedTarget}
+              on:headHover={handleHeadHover}
+              on:headSelect={(e) => {
+                activeSeveredHead = e.detail.head;
+                showTryAnother = false;
+              }}
+            />
+          {/if}
         </div>
       </div>
     {/if}

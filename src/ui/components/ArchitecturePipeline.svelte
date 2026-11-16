@@ -194,52 +194,53 @@
   </div>
 
   <!-- Layer anatomy diagram: how each layer reads the stream and writes back into it -->
-  <div class="relative bg-canvas-elevated border border-hairline rounded px-2 py-1 flex items-center gap-3 overflow-x-auto scrollbar-none">
-    <span class="text-[9px] font-mono font-bold uppercase tracking-wider text-ink-muted shrink-0 w-[74px] leading-tight">
+  <div class="relative bg-canvas-elevated border border-hairline rounded px-3 py-2 flex items-center gap-3 overflow-x-auto scrollbar-none">
+    <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-ink-secondary shrink-0 w-[84px] leading-snug">
       Inside every layer
     </span>
     <svg
-      viewBox="0 0 340 52"
-      class="flex-1 min-w-[300px] h-11"
+      viewBox="0 0 380 68"
+      class="flex-1 min-w-[320px] h-14"
       role="img"
       aria-label="Diagram: working memory flows through; attention reads it, adds its answer back; memory does the same"
     >
       <!-- the residual stream highway -->
-      <rect x="4" y="12" width="332" height="14" rx="7" fill="#e2e8f0" />
-      <text x="14" y="22" font-size="7" font-family="monospace" font-weight="700" fill="#475569">WORKING MEMORY flows through →</text>
+      <rect x="4" y="14" width="372" height="18" rx="9" fill="#cbd5e1" />
+      <rect x="4" y="14" width="372" height="18" rx="9" fill="none" stroke="#94a3b8" stroke-width="1" />
+      <text x="18" y="26.5" font-size="9" font-family="monospace" font-weight="700" fill="#1e293b">WORKING MEMORY →</text>
 
       <!-- attention read/write loop: reads down out of the stream, writes back in -->
       <path
-        d="M100 26 L100 38 Q100 43 105 43 L135 43 Q140 43 140 38 L140 26"
+        d="M110 32 L110 44 Q110 49 115 49 L151 49 Q156 49 156 44 L156 32"
         fill="none"
         stroke={attnOn ? '#d97706' : '#94a3b8'}
-        stroke-width={attnOn ? 2.4 : 1.4}
+        stroke-width={attnOn ? 2.6 : 1.6}
       />
       <!-- read arrow (down) -->
-      <polygon points="97,33 103,33 100,38" fill={attnOn ? '#d97706' : '#94a3b8'} />
+      <polygon points="106,39 114,39 110,46" fill={attnOn ? '#d97706' : '#94a3b8'} />
       <!-- write-back arrow (up, into the stream) -->
-      <polygon points="137,33 143,33 140,26" fill={attnOn ? '#d97706' : '#94a3b8'} />
-      <text x="120" y="51" text-anchor="middle" font-size="7.5" font-family="sans-serif" font-weight="700" fill={attnOn ? '#92400e' : '#64748b'}>
-        looks back, then adds its answer
+      <polygon points="152,40 160,40 156,31" fill={attnOn ? '#d97706' : '#94a3b8'} />
+      <text x="133" y="62" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={attnOn ? '#92400e' : '#475569'}>
+        looks back, adds its answer
       </text>
       {#if attnOn}
-        <circle cx="120" cy="43" r="2.2" fill="#d97706" />
+        <circle cx="133" cy="49" r="2.6" fill="#d97706" />
       {/if}
 
       <!-- memory read/write loop -->
       <path
-        d="M230 26 L230 38 Q230 43 235 43 L265 43 Q270 43 270 38 L270 26"
+        d="M246 32 L246 44 Q246 49 251 49 L287 49 Q292 49 292 44 L292 32"
         fill="none"
         stroke={ffnOn ? '#d97706' : '#94a3b8'}
-        stroke-width={ffnOn ? 2.4 : 1.4}
+        stroke-width={ffnOn ? 2.6 : 1.6}
       />
-      <polygon points="227,33 233,33 230,38" fill={ffnOn ? '#d97706' : '#94a3b8'} />
-      <polygon points="267,33 273,33 270,26" fill={ffnOn ? '#d97706' : '#94a3b8'} />
-      <text x="250" y="51" text-anchor="middle" font-size="7.5" font-family="sans-serif" font-weight="700" fill={ffnOn ? '#92400e' : '#64748b'}>
-        recalls patterns, then adds them
+      <polygon points="242,39 250,39 246,46" fill={ffnOn ? '#d97706' : '#94a3b8'} />
+      <polygon points="288,40 296,40 292,31" fill={ffnOn ? '#d97706' : '#94a3b8'} />
+      <text x="269" y="62" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={ffnOn ? '#92400e' : '#475569'}>
+        recalls patterns, adds them
       </text>
       {#if ffnOn}
-        <circle cx="250" cy="43" r="2.2" fill="#d97706" />
+        <circle cx="269" cy="49" r="2.6" fill="#d97706" />
       {/if}
     </svg>
   </div>

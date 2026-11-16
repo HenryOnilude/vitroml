@@ -8,8 +8,6 @@
     tour: void;
   }>();
 
-  const LAYERS = [0, 1, 2, 3, 4, 5];
-
   // Typewriter preview: the story the model writes, token by token
   const STORY_PIECES = ['there', ' was', ' a', ' little', ' girl', ' named', ' Lily', '.'];
   let writtenCount = 0;
@@ -39,7 +37,7 @@
         and switch off attention heads to see how the answer changes.
       </p>
       <div class="mt-2 p-2 bg-amber-50/70 border border-amber-200 rounded text-xs font-sans text-amber-950">
-        <strong class="font-semibold text-ink">What is this?</strong> Vitro is an interactive microscope for language models: watch how an AI writes a story one word at a time, and turn off parts of its brain to see how its predictions change (this is an exploratory tool to inspect neural network reasoning, not a data-cleaning or training tool).
+        <strong class="font-semibold text-ink">What is this?</strong> An interactive microscope for a language model — an exploratory instrument, not a data-cleaning or training tool.
       </div>
       <div class="flex flex-wrap items-center gap-2 mt-2.5 text-[10px] font-mono text-ink-muted font-bold">
         <span>15.2M params</span>
@@ -97,25 +95,9 @@
     </div>
   </div>
 
-  <!-- Animated mini-pipeline: previews the real execution bus below -->
+  <!-- The payoff: the model writing a story, token by token -->
   <div class="relative mt-3.5 pt-3 border-t border-hairline">
-    <div class="relative flex items-center justify-between gap-1.5" aria-hidden="true">
-      <div class="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-[1px] bg-slate-200"></div>
-
-      <!-- traveling packet -->
-      <span class="hero-packet absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_2px_rgba(217,119,6,0.4)] z-10"></span>
-
-      <span class="relative z-10 bg-ink text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">"Once"</span>
-      <span class="relative z-10 bg-white border border-slate-300 text-ink-secondary text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">E</span>
-      {#each LAYERS as l}
-        <span class="relative z-10 bg-white border border-slate-300 text-ink-secondary text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">L{l}</span>
-      {/each}
-      <span class="relative z-10 bg-white border border-slate-300 text-ink-secondary text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">N</span>
-      <span class="relative z-10 bg-ink text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded">scores</span>
-    </div>
-
-    <!-- The payoff: the model writing a story, token by token -->
-    <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-mono min-w-0" aria-hidden="true">
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-mono min-w-0" aria-hidden="true">
       <span class="text-[9px] font-bold uppercase tracking-wider text-ink-muted shrink-0">it writes</span>
       <span class="text-slate-700">⟨s⟩ Once upon a time</span>
       <span class="text-amber-700 font-bold">
@@ -141,15 +123,6 @@
 </section>
 
 <style>
-  .hero-packet {
-    animation: hero-travel 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  }
-  @keyframes hero-travel {
-    0%   { left: 0.75rem; opacity: 0; }
-    6%   { opacity: 1; }
-    94%  { opacity: 1; }
-    100% { left: calc(100% - 0.75rem); opacity: 0; }
-  }
   .hero-caret {
     animation: hero-blink 1.1s steps(2, start) infinite;
   }

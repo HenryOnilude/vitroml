@@ -95,7 +95,7 @@
   }
 </script>
 
-<div class="space-y-2.5">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
   <!-- Interactive 6x6 Circuit Board Matrix with Hover Brushing -->
   <HeadGrid
     bind:selectedLayer
