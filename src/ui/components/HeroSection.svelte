@@ -95,6 +95,85 @@
     </div>
   </div>
 
+  <!-- Cover diagram: the whole story in one annotated picture -->
+  <div class="mt-3.5 pt-3 border-t border-hairline overflow-x-auto scrollbar-none">
+    <svg
+      viewBox="0 0 1000 168"
+      class="w-full min-w-[720px] h-auto"
+      role="img"
+      aria-label="Diagram: your words enter the model, attention heads look back inside 6 layers, a next-word guess comes out, and switching a head off changes that guess"
+    >
+      <!-- scene captions -->
+      <text x="20" y="14" font-size="9" font-family="monospace" font-weight="700" fill="#b45309">1 · GIVE IT WORDS</text>
+      <text x="370" y="14" font-size="9" font-family="monospace" font-weight="700" fill="#b45309">2 · WATCH IT THINK</text>
+      <text x="768" y="14" font-size="9" font-family="monospace" font-weight="700" fill="#b45309">3 · BREAK IT</text>
+
+      <!-- scene 1: input tokens -->
+      <rect x="20" y="42" width="44" height="22" rx="4" fill="#1e293b" /><text x="42" y="57" text-anchor="middle" font-size="10" font-family="sans-serif" fill="white">Once</text>
+      <rect x="70" y="42" width="44" height="22" rx="4" fill="#1e293b" /><text x="92" y="57" text-anchor="middle" font-size="10" font-family="sans-serif" fill="white">upon</text>
+      <rect x="120" y="42" width="20" height="22" rx="4" fill="#1e293b" /><text x="130" y="57" text-anchor="middle" font-size="10" font-family="sans-serif" fill="white">a</text>
+      <rect x="146" y="42" width="40" height="22" rx="4" fill="#1e293b" /><text x="166" y="57" text-anchor="middle" font-size="10" font-family="sans-serif" fill="white">time</text>
+      <text x="20" y="82" font-size="8" font-family="monospace" fill="#64748b">your story start</text>
+      <path d="M192 53 L222 53" stroke="#d97706" stroke-width="2.4" />
+      <polygon points="222,49 222,57 230,53" fill="#d97706" />
+
+      <!-- scene 2: the model box -->
+      <rect x="236" y="26" width="380" height="132" rx="8" fill="#f8fafc" stroke="#cbd5e1" />
+      <text x="426" y="40" text-anchor="middle" font-size="8" font-family="monospace" font-weight="700" fill="#64748b">INSIDE THE MODEL · 6 LAYERS</text>
+
+      <!-- attention arcs inside the box -->
+      <circle cx="330" cy="58" r="3.5" fill="#475569" />
+      <circle cx="390" cy="58" r="3.5" fill="#475569" />
+      <circle cx="450" cy="58" r="3.5" fill="#475569" />
+      <circle cx="510" cy="58" r="3.5" fill="#d97706" />
+      <path d="M510 56 Q480 44 450 56" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.9" />
+      <path d="M510 56 Q450 38 390 56" fill="none" stroke="#d97706" stroke-width="1.2" opacity="0.6" />
+      <path d="M510 56 Q420 32 330 56" fill="none" stroke="#d97706" stroke-width="0.9" opacity="0.4" />
+      <text x="600" y="70" text-anchor="end" font-size="7.5" font-family="monospace" fill="#92400e">heads look back ↶</text>
+
+      <!-- six layer bands -->
+      {#each Array(6) as _, i}
+        <rect x="252" y={72 + i * 13} width="348" height="10" rx="2" fill={i % 2 ? '#e9edf2' : '#eef1f5'} stroke="#d7dde5" stroke-width="0.5" />
+        <text x="258" y={80 + i * 13} font-size="7" font-family="monospace" font-weight="700" fill="#64748b">L{i}</text>
+      {/each}
+      <text x="252" y="154" font-size="7.5" font-family="monospace" fill="#64748b">every layer is opened below in Act 1</text>
+
+      <!-- arrow to output -->
+      <path d="M616 92 L646 92" stroke="#d97706" stroke-width="2.4" />
+      <polygon points="646,88 646,96 654,92" fill="#d97706" />
+
+      <!-- output guess -->
+      <rect x="656" y="76" width="84" height="28" rx="5" fill="#1e293b" />
+      <text x="698" y="95" text-anchor="middle" font-size="11" font-family="sans-serif" font-weight="700" fill="white">" there"</text>
+      <rect x="656" y="112" width="84" height="4" rx="2" fill="#e2e8f0" />
+      <rect x="656" y="112" width="70" height="4" rx="2" fill="#d97706" />
+      <text x="656" y="130" font-size="8" font-family="monospace" fill="#64748b">its next-word guess</text>
+
+      <!-- divider -->
+      <line x1="752" y1="28" x2="752" y2="158" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3,3" />
+
+      <!-- scene 3: break it -->
+      {#each Array(6) as _, i}
+        <rect x={768 + i * 28} y="42" width="24" height="24" rx="4" fill={i === 3 ? '#b91c1c' : '#334155'} />
+        <text x={780 + i * 28} y="58" text-anchor="middle" font-size="8" font-family="monospace" font-weight="700" fill="white">H{i}</text>
+        {#if i === 3}
+          <line x1={771 + i * 28} y1="45" x2={789 + i * 28} y2="63" stroke="white" stroke-width="2" />
+          <line x1={789 + i * 28} y1="45" x2={771 + i * 28} y2="63" stroke="white" stroke-width="2" />
+        {/if}
+      {/each}
+      <text x="768" y="82" font-size="8" font-family="monospace" fill="#64748b">switch one head off</text>
+
+      <!-- before / after -->
+      <rect x="768" y="98" width="92" height="26" rx="4" fill="white" stroke="#94a3b8" />
+      <text x="814" y="115" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill="#1e293b">" and" 21%</text>
+      <path d="M864 111 L878 111" stroke="#94a3b8" stroke-width="1.8" />
+      <polygon points="878,107 878,115 886,111" fill="#94a3b8" />
+      <rect x="888" y="98" width="92" height="26" rx="4" fill="#fff7ed" stroke="#c2410c" />
+      <text x="934" y="115" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill="#9a3412">" with" 13%</text>
+      <text x="768" y="142" font-size="8" font-family="monospace" fill="#64748b">the guess changes — that is what the head was doing</text>
+    </svg>
+  </div>
+
   <!-- The payoff: the model writing a story, token by token -->
   <div class="relative mt-3.5 pt-3 border-t border-hairline">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-mono min-w-0" aria-hidden="true">

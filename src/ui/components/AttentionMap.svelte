@@ -106,6 +106,19 @@
       <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
       <span>What's this?</span>
     </summary>
+    <svg viewBox="0 0 320 66" class="w-full max-w-sm h-auto mt-1.5" aria-hidden="true">
+      <!-- one head looking back -->
+      <rect x="14" y="30" width="38" height="20" rx="4" fill="#334155" />
+      <text x="33" y="44" text-anchor="middle" font-size="8.5" font-family="sans-serif" fill="white">The</text>
+      <rect x="60" y="30" width="46" height="20" rx="4" fill="#334155" />
+      <text x="83" y="44" text-anchor="middle" font-size="8.5" font-family="sans-serif" fill="white">little</text>
+      <rect x="114" y="30" width="40" height="20" rx="4" fill="#d97706" />
+      <text x="134" y="44" text-anchor="middle" font-size="8.5" font-family="sans-serif" fill="white">girl</text>
+      <path d="M134 28 C 134 8, 33 8, 33 28" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.8" />
+      <path d="M134 28 C 134 14, 83 14, 83 28" fill="none" stroke="#d97706" stroke-width="1.2" opacity="0.5" />
+      <text x="170" y="36" font-size="7.5" font-family="monospace" fill="#64748b">"girl" looks back at "The" and "little"</text>
+      <text x="170" y="47" font-size="7.5" font-family="monospace" fill="#64748b">each row below = one head doing this</text>
+    </svg>
     <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
       Each row is one attention head, the same six heads as the Circuit Map squares. It shows which earlier tokens that head looks at. The outlined cell is its favorite, and the arrow names its top focus.
     </p>

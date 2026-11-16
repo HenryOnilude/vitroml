@@ -296,6 +296,14 @@
       <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
       <span>What's this?</span>
     </summary>
+    <svg viewBox="0 0 320 48" class="w-full max-w-sm h-auto mt-1.5" aria-hidden="true">
+      {#each Array(6) as _, i}
+        <rect x={4 + i * 52} y="6" width="48" height="16" rx="3" fill={i % 2 ? '#e2e8f0' : '#cbd5e1'} stroke="#94a3b8" stroke-width="0.5" />
+        <text x={28 + i * 52} y="17.5" text-anchor="middle" font-size="7.5" font-family="monospace" font-weight="700" fill="#334155">H{i}</text>
+        <text x={28 + i * 52} y="32" text-anchor="middle" font-size="6.5" font-family="monospace" fill="#64748b">48 numbers</text>
+      {/each}
+      <text x="4" y="45" font-size="7" font-family="monospace" fill="#64748b">288 channels, grouped into the same six head slices as the Circuit Map</text>
+    </svg>
     <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
       The token's working notes. Every layer reads these 288 numbers and writes changes back into them. The shaded bands group the numbers into the same six head slices you see as Attention Field rows and as Circuit Map squares.
     </p>
