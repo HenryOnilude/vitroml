@@ -425,9 +425,8 @@
         <!-- 0. Hero: what this is and what you can do with it -->
         <HeroSection {step2Label} on:guideStep={handleGuideStep} on:tour={() => (tourOpen = true)} />
 
-        <!-- Chapters: numbered markers sit on a rail that starts at chip 1 -->
+        <!-- Chapters: numbered markers, one idea at a time -->
         <div class="relative space-y-3">
-          <div class="absolute left-[17px] top-3.5 bottom-0 w-[2px] bg-slate-300/60 pointer-events-none" aria-hidden="true"></div>
 
         <!-- Chapter 1: give the model a story start -->
         <div id="chapter-1" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="1">
