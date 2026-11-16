@@ -12,6 +12,7 @@
 
   export let stepState: StepState | null = null;
   export let highlightedHead: number | null = null;
+  export let severedHead: number | null = null;
   export let config: ModelConfig | null = null;
   export let weights: ModelWeights | null = null;
   export let tokenizer: Tokenizer | null = null;
@@ -311,8 +312,26 @@
         {@const xStart = (hIdx * 48 / 288) * CHART_WIDTH}
         {@const xWidth = (48 / 288) * CHART_WIDTH}
         {@const isHeadHighlighted = highlightedHead === hIdx}
+        {@const isHeadSevered = severedHead === hIdx}
 
-        {#if hIdx % 2 === 1}
+        {#if isHeadSevered}
+          <rect
+            x={xStart}
+            y={0}
+            width={xWidth}
+            height={CHART_HEIGHT}
+            fill="#b91c1c"
+            opacity="0.08"
+          />
+          <line
+            x1={xStart}
+            y1={1}
+            x2={xStart + xWidth}
+            y2={1}
+            stroke="#b91c1c"
+            stroke-width="2"
+          />
+        {:else if hIdx % 2 === 1}
           <rect
             x={xStart}
             y={0}
@@ -409,10 +428,16 @@
     <div class="flex justify-between items-center text-[10px] text-slate-600 font-mono font-bold mt-0.5 px-1">
       {#each Array(6) as _, hIdx}
         <span
-          class={`w-[16.6%] text-center transition-colors ${highlightedHead === hIdx ? 'text-ink font-black' : ''}`}
-          title={`Head ${hIdx}'s slice of the vector: channels ${hIdx * 48} to ${hIdx * 48 + 47}`}
+          class={`w-[16.6%] text-center transition-colors ${
+            highlightedHead === hIdx
+              ? 'text-ink font-black'
+              : severedHead === hIdx
+              ? 'text-accent-rust font-extrabold'
+              : ''
+          }`}
+          title={`Head ${hIdx}'s slice of the vector: channels ${hIdx * 48} to ${hIdx * 48 + 47}${severedHead === hIdx ? ' · currently turned off in Act 2' : ''}`}
         >
-          H{hIdx}
+          H{hIdx}{severedHead === hIdx ? ' ✕' : ''}
         </span>
       {/each}
     </div>

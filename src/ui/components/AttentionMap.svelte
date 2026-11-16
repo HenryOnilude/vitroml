@@ -4,6 +4,7 @@
   export let stepState: StepState | null = null;
   export let positionLabels: { text: string; id: number }[] = [];
   export let highlightedHead: number | null = null;
+  export let severedHead: number | null = null;
 
   interface AttnSnapshot {
     layer: number;
@@ -110,10 +111,11 @@
     <div class="space-y-1">
       {#each lastAttn.rows as row, h}
         {@const isHighlighted = highlightedHead === h}
+        {@const isSevered = severedHead === h}
         {@const focus = argmax(row)}
         <div class={`flex items-center gap-2 transition-opacity ${highlightedHead !== null && !isHighlighted ? 'opacity-30' : ''}`}>
-          <span class={`text-[9px] font-mono font-bold w-6 shrink-0 ${isHighlighted ? 'text-accent-bronze' : 'text-ink-muted'}`}>
-            H{h}
+          <span class={`text-[9px] font-mono font-bold w-6 shrink-0 ${isSevered ? 'text-accent-rust' : isHighlighted ? 'text-accent-bronze' : 'text-ink-muted'}`} title={isSevered ? `Head ${h} is turned off in the experiment` : undefined}>
+            H{h}{isSevered ? ' ✕' : ''}
           </span>
           <div class="flex-1 flex gap-[2px]">
             {#each row as score, t}

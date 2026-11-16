@@ -81,9 +81,13 @@
   let highlightTimer: ReturnType<typeof setTimeout> | null = null;
   let interventionRef: InterventionPanel | null = null;
 
+  let activeSeveredHead: number | null = null;
+
   function handleWhySelectHead(event: CustomEvent<{ layer: number; head: number }>) {
     const { layer, head } = event.detail;
     mobileAct = 2;
+    activeSeveredHead = head;
+    openAct2();
     interventionRef?.selectHead(layer, head);
   }
 
@@ -95,6 +99,7 @@
       await tick();
     }
     if (step === 2) {
+      activeSeveredHead = curated.head;
       interventionRef?.selectHead(curated.layer, curated.head);
       showTryAnother = true;
     }
@@ -420,6 +425,7 @@
             <ResidualStreamView
               stepState={$stateStore?.currentStep ?? null}
               highlightedHead={brushedHead}
+              severedHead={act2Open ? activeSeveredHead : null}
               {config}
               {weights}
               {tokenizer}
@@ -432,6 +438,7 @@
                 stepState={$stateStore?.currentStep ?? null}
                 {positionLabels}
                 highlightedHead={brushedHead}
+                severedHead={act2Open ? activeSeveredHead : null}
               />
             </div>
           </div>
@@ -484,7 +491,10 @@
                 activePos={currentPos}
                 {highlightedTarget}
                 on:headHover={handleHeadHover}
-                on:headSelect={() => (showTryAnother = false)}
+                on:headSelect={(e) => {
+                  activeSeveredHead = e.detail.head;
+                  showTryAnother = false;
+                }}
               />
             {/if}
           </div>
