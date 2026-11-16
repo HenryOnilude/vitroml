@@ -392,18 +392,18 @@
         />
 
         <!-- Mobile act switcher: pick one act at a time on narrow screens -->
-        <div class="lg:hidden flex rounded border border-hairline overflow-hidden text-[11px] font-mono font-bold bg-white">
+        <div class="lg:hidden flex rounded border border-hairline overflow-hidden text-xs font-mono font-bold bg-white shadow-subtle min-h-[44px]">
           <button
             type="button"
             on:click={() => (mobileAct = 1)}
-            class={`flex-1 px-3 py-1.5 transition-colors ${mobileAct === 1 ? 'bg-ink text-white' : 'text-ink-secondary hover:text-ink'}`}
+            class={`flex-1 min-h-[44px] px-3 py-2.5 transition-colors flex items-center justify-center active:scale-[0.99] ${mobileAct === 1 ? 'bg-ink text-white font-extrabold' : 'text-ink-secondary hover:text-ink hover:bg-slate-50'}`}
           >
             Act 1 · Inside
           </button>
           <button
             type="button"
             on:click={() => (mobileAct = 2)}
-            class={`flex-1 px-3 py-1.5 transition-colors border-l border-hairline ${mobileAct === 2 ? 'bg-ink text-white' : 'text-ink-secondary hover:text-ink'}`}
+            class={`flex-1 min-h-[44px] px-3 py-2.5 transition-colors border-l border-hairline flex items-center justify-center active:scale-[0.99] ${mobileAct === 2 ? 'bg-ink text-white font-extrabold' : 'text-ink-secondary hover:text-ink hover:bg-slate-50'}`}
           >
             Act 2 · Experiment
           </button>

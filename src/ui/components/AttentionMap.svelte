@@ -71,11 +71,12 @@
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle h-full flex flex-col">
   <div class="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider" title="Technical term: Attention Field. Shows where each of the 6 attention heads looks back across earlier words.">Where It Looks Back (Attention Field)</span>
+      <span class="text-ink font-bold text-xs uppercase tracking-wider" title="Technical term: Attention Field. Shows where each of the 6 attention heads looks back across earlier words.">Where It Looks Back</span>
       <span class="text-slate-300 font-bold">/</span>
       <span class="text-ink-secondary font-sans font-semibold text-xs">
+        <span class="font-semibold">Attention Field</span> ·
         {#if lastAttn}
-          L{lastAttn.layer} · the token at position {lastAttn.pos} looks back over {lastAttn.pos + 1} token{lastAttn.pos === 0 ? '' : 's'}
+          Layer {lastAttn.layer} · looks back over {lastAttn.pos + 1} token{lastAttn.pos === 0 ? '' : 's'}
         {:else}
           6 heads · waiting for the first attention pass
         {/if}
@@ -90,8 +91,11 @@
     Each row is one head, showing where it looked.
   </p>
   <details class="text-xs mb-2">
-    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+    <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+      <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+      <span>What's this?</span>
+    </summary>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
       Each row is one attention head, the same six heads as the Circuit Map squares. It shows which earlier tokens that head looks at. The outlined cell is its favorite, and the arrow names its top focus.
     </p>
   </details>

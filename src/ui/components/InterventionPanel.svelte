@@ -143,8 +143,11 @@
       The experiment bench. Cut a head, measure the change.
     </p>
     <details class="text-xs mb-2">
-      <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+      <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+        <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+        <span>What's this?</span>
+      </summary>
+      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
         The experiment bench. Pick a head on the Circuit Map and this runs the model twice: once normally, once with that head's 48 channels zeroed. The numbers show exactly what the head was contributing.
       </p>
     </details>
