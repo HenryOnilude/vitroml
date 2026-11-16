@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { Tokenizer } from '../../engine/tokenizer';
   import type { ForwardController } from '../../bridge/controller';
+  import { transportStep, transportPlay, transportPause, transportReset } from '../transport';
 
   export let tokenizer: Tokenizer | null = null;
   export let controller: ForwardController | null = null;
@@ -99,45 +100,13 @@
 
   let stateStore: ForwardController['state'] | null = null;
   $: stateStore = controller ? controller.state : null;
+  $: status = $stateStore?.status;
 
-  function handleStep() {
-    if (!controller) return;
-    if ($stateStore?.status === 'completed') {
-      dispatch('advance', { resume: 'step' });
-      return;
-    }
-    dispatch('userStep');
-    if ($stateStore?.status === 'idle') {
-      controller.start(1, 0);
-    }
-    controller.step();
-  }
-
-  function handlePlay() {
-    if (!controller) return;
-    if ($stateStore?.status === 'completed') {
-      dispatch('advance', { resume: 'play' });
-      return;
-    }
-    dispatch('userPlay');
-    if ($stateStore?.status === 'idle') {
-      controller.start(1, 0);
-    }
-    controller.play();
-  }
-
-  function handlePause() {
-    if (!controller) return;
-    dispatch('userPause');
-    controller.pause();
-  }
-
-  function handleReset() {
-    if (!controller) return;
-    dispatch('userReset');
-    controller.reset();
-    controller.start(1, 0);
-  }
+  const emit = (t: any, d?: any) => dispatch(t, d);
+  const handleStep = () => transportStep(controller, status, emit);
+  const handlePlay = () => transportPlay(controller, status, emit);
+  const handlePause = () => transportPause(controller, emit);
+  const handleReset = () => transportReset(controller, emit);
 
   function selectPreset(preset: string) {
     promptText = preset;

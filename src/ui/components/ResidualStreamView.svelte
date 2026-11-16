@@ -44,6 +44,10 @@
   const DRAW_HEIGHT = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
   const ZERO_Y = PADDING_TOP + DRAW_HEIGHT / 2;
 
+  // Deterministic ghost silhouette: previews the 288-channel shape before data lands
+  const ghostV = (i: number) =>
+    Math.sin(i * 0.31) * Math.cos(i * 0.117) + Math.sin(i * 1.71) * 0.3;
+
   // Crameri `vik` diverging ramp: navy (negative) → ash (zero) → rust-ochre (positive)
   const VIK_STOPS: [number, [number, number, number]][] = [
     [-1.0, [0x00, 0x12, 0x61]],
@@ -386,6 +390,22 @@
         stroke-width="1"
       />
 
+      <!-- Ghost bars: preview the 288-channel silhouette before the first pass writes real values -->
+      {#if !stepState}
+        {#each Array(288) as _, i}
+          {@const v = ghostV(i)}
+          {@const gh = Math.abs(v) * (DRAW_HEIGHT / 2) * 0.8}
+          <rect
+            x={i * (CHART_WIDTH / 288)}
+            y={v >= 0 ? ZERO_Y - gh : ZERO_Y}
+            width={Math.max(1.5, CHART_WIDTH / 288 - 0.35)}
+            height={gh}
+            fill="#94a3b8"
+            opacity="0.22"
+          />
+        {/each}
+      {/if}
+
       <!-- Bars: Precision Deep Blue (#2563eb) positive, Precision Rose (#e11d48) negative -->
       {#each bars as bar}
         {@const barWidth = CHART_WIDTH / bars.length}
@@ -419,7 +439,7 @@
     {#if !stepState}
       <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
         <span class="text-[11px] font-sans font-medium text-slate-900 bg-white/80 px-2 py-0.5 rounded">
-          Nothing here yet. Press Step or Play and each layer writes into these 288 channels
+          Faint bars preview the shape. Press Step or Play and real values land here, one layer at a time
         </span>
       </div>
     {/if}

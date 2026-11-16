@@ -125,10 +125,27 @@
   </details>
 
   {#if !lastAttn}
-    <div class="flex-1 flex items-center justify-center bg-slate-50 border border-slate-200 rounded shadow-inner">
-      <span class="text-[11px] font-sans font-medium text-slate-900 bg-white/80 px-2 py-0.5 rounded text-center max-w-xs">
-        Nothing here yet. Step into a layer's attention phase and each row lights up, showing where that head looked.
-      </span>
+    <div class="relative flex-1 bg-slate-50 border border-slate-200 rounded shadow-inner p-3 overflow-hidden">
+      <!-- Ghost rows: preview the six-head attention field before the first pass -->
+      <div class="space-y-1" aria-hidden="true">
+        {#each Array(6) as _, h}
+          <div class="flex items-center gap-2">
+            <span class="text-[9px] font-mono font-bold w-6 shrink-0 text-slate-300">H{h}</span>
+            <div class="flex-1 flex gap-[2px]">
+              {#each Array(8) as _, t}
+                {@const w = Math.exp(-Math.pow(t - (1.4 + h * 0.95), 2) / 2.6)}
+                <div class="h-4 flex-1 rounded-[1px]" style={`background: rgba(100,116,139,${0.08 + w * 0.4})`}></div>
+              {/each}
+            </div>
+            <span class="w-24 shrink-0"></span>
+          </div>
+        {/each}
+      </div>
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span class="text-[11px] font-sans font-medium text-slate-900 bg-white/85 px-2 py-0.5 rounded text-center max-w-xs">
+          Ghost rows preview the layout. Step into a layer's attention phase and each row lights up, showing where that head looked.
+        </span>
+      </div>
     </div>
   {:else}
     <div class="space-y-1">

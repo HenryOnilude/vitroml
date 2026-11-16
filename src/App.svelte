@@ -15,6 +15,7 @@
   import InterventionPanel from './ui/components/InterventionPanel.svelte';
   import AttentionMap from './ui/components/AttentionMap.svelte';
   import GuidedTour from './ui/components/GuidedTour.svelte';
+  import MiniTransport from './ui/components/MiniTransport.svelte';
 
   let isLoading: boolean = true;
   let loadingProgress: string = 'Initializing engine...';
@@ -340,6 +341,8 @@
 
   // Chapter compass: the active chapter is the last marker above 40% of the viewport
   let activeChapter = 1;
+  let toolbarEl: HTMLDivElement | null = null;
+  let controlsPassed = false;
   onMount(() => {
     const updateChapter = () => {
       const markers = document.querySelectorAll('[data-chapter]');
@@ -350,6 +353,7 @@
         }
       }
       activeChapter = current;
+      controlsPassed = toolbarEl ? toolbarEl.getBoundingClientRect().bottom < 0 : false;
     };
     window.addEventListener('scroll', updateChapter, { passive: true });
     updateChapter();
@@ -435,22 +439,24 @@
           <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
           <span class="text-[10px] font-sans text-ink-muted">type a beginning, then press play</span>
         </div>
-        <WorkbenchToolbar
-          {tokenizer}
-          {controller}
-          promptText="Once upon a time"
-          {currentPos}
-          {generatedTokens}
-          highlighted={highlightedTarget === 'controls'}
-          attentionRays={activeHeadRays}
-          {focusMode}
-          on:tokensChange={handleTokensChange}
-          on:advance={handleAdvance}
-          on:userPlay={() => (autoGen = true)}
-          on:userPause={() => (autoGen = false)}
-          on:userStep={() => (autoGen = false)}
-          on:userReset={resetGenerationState}
-        />
+        <div bind:this={toolbarEl}>
+          <WorkbenchToolbar
+            {tokenizer}
+            {controller}
+            promptText="Once upon a time"
+            {currentPos}
+            {generatedTokens}
+            highlighted={highlightedTarget === 'controls'}
+            attentionRays={activeHeadRays}
+            {focusMode}
+            on:tokensChange={handleTokensChange}
+            on:advance={handleAdvance}
+            on:userPlay={() => (autoGen = true)}
+            on:userPause={() => (autoGen = false)}
+            on:userStep={() => (autoGen = false)}
+            on:userReset={resetGenerationState}
+          />
+        </div>
 
         <!-- Chapter 2: watch one word travel through the model, narrated live -->
         <div id="chapter-2" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="2">
@@ -616,6 +622,18 @@
         {#if ch.n < 4}<span class="w-px h-5 bg-hairline"></span>{/if}
       {/each}
     </nav>
+  {/if}
+
+  <!-- Floating transport: Step/Play stays reachable after the controls scroll away -->
+  {#if controlsPassed && !isLoading && !loadError && !tourOpen}
+    <MiniTransport
+      {controller}
+      on:advance={handleAdvance}
+      on:userPlay={() => (autoGen = true)}
+      on:userPause={() => (autoGen = false)}
+      on:userStep={() => (autoGen = false)}
+      on:userReset={resetGenerationState}
+    />
   {/if}
 
   <!-- 5-slide guided tour: one concept at a time, with simple diagrams -->
