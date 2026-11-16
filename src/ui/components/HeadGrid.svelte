@@ -53,9 +53,9 @@
 >
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-2 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider">Circuit Map</span>
+      <span class="text-ink font-serif font-bold text-[15px] tracking-tight" title="Circuit Map: all 36 attention heads arranged by layer and head index.">Brain Parts</span>
       <span class="text-hairline-bright">•</span>
-      <span class="text-ink-secondary font-sans text-xs">36 Attention Heads</span>
+      <span class="text-ink-secondary font-sans text-xs"><span class="font-semibold">Circuit Map</span> (36 Heads)</span>
     </div>
 
     <!-- Minimal legend -->
@@ -70,7 +70,7 @@
       </span>
       <span class="flex items-center gap-1.5">
         <span class="w-2.5 h-2.5 rounded border border-hairline-bright" style="background: rgba(17,18,21,0.35)"></span>
-        <span class="text-ink-secondary">Impact if off</span>
+        <span class="text-ink-secondary">Impact if turned off</span>
       </span>
     </div>
   </div>
@@ -79,8 +79,11 @@
     Each square is one attention head. Darker = switching it off changes the output more.
   </p>
   <details class="text-xs mb-2">
-    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+    <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+      <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+      <span>What's this?</span>
+    </summary>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
       Each square is one attention head (<span class="font-mono">layer:head</span>). The shading shows how much the output changes when that head is off. Darker means it matters more. Click a square to switch that head off and watch what changes.
     </p>
   </details>
@@ -117,14 +120,14 @@
           on:click={() => handleHeadClick(l, h)}
           on:mouseenter={() => handleMouseEnter(l, h)}
           on:mouseleave={handleMouseLeave}
-          class={`h-8 rounded text-[11px] font-mono font-medium transition-all duration-100 flex flex-col items-center justify-center border active:scale-95 ${
+          class={`min-h-[38px] sm:min-h-[34px] py-0.5 rounded text-[11px] font-mono font-medium transition-all duration-100 flex flex-col items-center justify-center border cursor-pointer active:scale-90 active:ring-2 active:ring-amber-500 ${
             isAblated
-              ? 'border-accent-rust text-white shadow-sm'
+              ? 'border-accent-rust text-white shadow-sm ring-1 ring-accent-rust ring-offset-1'
               : isSelected
-              ? 'bg-ink border-ink text-white font-bold shadow-sm'
+              ? 'bg-ink border-ink text-white font-bold shadow-md ring-2 ring-ink ring-offset-1'
               : isLayerActive
-              ? 'border-ink text-ink font-bold'
-              : 'hover:bg-white border-hairline hover:border-hairline-bright text-ink-secondary hover:text-ink'
+              ? 'border-ink text-ink font-bold ring-1 ring-slate-300'
+              : 'hover:bg-white border-hairline hover:border-hairline-bright text-ink-secondary hover:text-ink hover:shadow-xs'
           }`}
           style={isAblated
             ? 'background: #b91c1c; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.22) 0 2px, transparent 2px 4px)'

@@ -8,14 +8,17 @@
 
   const dispatch = createEventDispatcher<{
     selectHead: { layer: number; head: number };
+    headFocus: { layer: number; head: number } | null;
   }>();
 
   export let stepState: StepState | null = null;
   export let highlightedHead: number | null = null;
+  export let severedHead: number | null = null;
   export let config: ModelConfig | null = null;
   export let weights: ModelWeights | null = null;
   export let tokenizer: Tokenizer | null = null;
   export let currentToken: number = 1;
+  export let focusMode: 'attention' | 'memory' | 'prediction' | null = null;
 
   interface BarData {
     index: number;
@@ -40,6 +43,10 @@
   const PADDING_BOTTOM = 16;
   const DRAW_HEIGHT = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
   const ZERO_Y = PADDING_TOP + DRAW_HEIGHT / 2;
+
+  // Deterministic ghost silhouette: previews the 288-channel shape before data lands
+  const ghostV = (i: number) =>
+    Math.sin(i * 0.31) * Math.cos(i * 0.117) + Math.sin(i * 1.71) * 0.3;
 
   // Crameri `vik` diverging ramp: navy (negative) → ash (zero) → rust-ochre (positive)
   const VIK_STOPS: [number, [number, number, number]][] = [
@@ -250,25 +257,25 @@
     a.kind === 'head' ? `L${a.layer}:H${a.head}` : a.kind === 'ffn' ? 'the FFN' : 'norm rescale';
 </script>
 
-<div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col justify-between">
+<div class={`bg-white border rounded p-3 shadow-subtle flex flex-col justify-between transition-all duration-300 ${focusMode === 'attention' ? 'border-hairline opacity-60 grayscale-[0.3]' : 'border-hairline'} ${focusMode === 'prediction' ? 'ring-2 ring-amber-400/60' : ''}`}>
   <!-- Header & Metric Badges with High-Contrast Typography -->
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-2 min-w-0">
       <span
-        class="text-ink font-bold text-xs uppercase tracking-wider"
-        title="The vector each token carries through the model. Every layer reads it and writes back into it. Also called the residual stream."
-      >Working Vector</span>
+        class="text-ink font-serif font-bold text-[15px] tracking-tight"
+        title="Technical term: Working Vector / Residual Stream. The 288 numbers each layer reads from and writes back into."
+      >Working Memory</span>
       <span class="text-slate-300 font-bold">/</span>
       {#if viewMode === 'delta' && stepState}
         <span class="text-ink-secondary font-sans font-semibold text-xs">
-          Δx written by L{stepState.layer} {stepState.phase === 'post-attention' ? 'Attention' : 'FFN'}
+          Changes written by L{stepState.layer} {stepState.phase === 'post-attention' ? 'Attention' : 'Memory'}
         </span>
       {:else}
-        <span class="text-ink-secondary font-sans font-semibold text-xs">288 Dimensions</span>
+        <span class="text-ink-secondary font-sans font-semibold text-xs"><span class="font-semibold">Working Vector</span> · 288 Numbers</span>
       {/if}
       {#if stepState}
         <span class="text-amber-950 font-bold bg-amber-100/80 border border-amber-300 px-2.5 py-0.5 rounded text-[10px]">
-          L{stepState.layer} · {stepState.phase === 'post-attention' ? 'Attn' : 'FFN'}
+          L{stepState.layer} · {stepState.phase === 'post-attention' ? 'Attention' : 'Memory'}
         </span>
       {/if}
     </div>
@@ -276,10 +283,10 @@
     <!-- Integrated Stats Summary with Bold Text -->
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs min-w-0">
       <!-- x / Δx view toggle -->
-      <div class="flex items-center rounded border border-hairline overflow-hidden text-[10px] font-mono font-bold">
+      <div class="flex items-center rounded border border-hairline overflow-hidden text-xs font-mono font-bold shadow-subtle">
         <button
           on:click={() => (viewMode = 'stream')}
-          class={`px-2 py-0.5 transition-colors ${viewMode === 'stream' ? 'bg-ink text-white' : 'bg-white text-ink-secondary hover:text-ink'}`}
+          class={`px-3 py-1.5 sm:py-0.5 transition-colors active:scale-95 ${viewMode === 'stream' ? 'bg-ink text-white font-extrabold' : 'bg-white text-ink-secondary hover:text-ink'}`}
           title="The running vector as it currently stands"
         >
           x
@@ -287,7 +294,7 @@
         <button
           on:click={() => (viewMode = 'delta')}
           disabled={!deltaData}
-          class={`px-2 py-0.5 transition-colors disabled:opacity-40 ${viewMode === 'delta' ? 'bg-ink text-white' : 'bg-white text-ink-secondary hover:text-ink'}`}
+          class={`px-3 py-1.5 sm:py-0.5 transition-colors disabled:opacity-40 active:scale-95 ${viewMode === 'delta' ? 'bg-ink text-white font-extrabold' : 'bg-white text-ink-secondary hover:text-ink'}`}
           title="What this step added or removed from the vector"
         >
           Δx
@@ -313,8 +320,19 @@
     The token's 288 working numbers, rewritten at every stage.
   </p>
   <details class="text-xs mb-2">
-    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+    <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+      <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+      <span>What's this?</span>
+    </summary>
+    <svg viewBox="0 0 320 48" class="w-full max-w-sm h-auto mt-1.5" aria-hidden="true">
+      {#each Array(6) as _, i}
+        <rect x={4 + i * 52} y="6" width="48" height="16" rx="3" fill={i % 2 ? '#e2e8f0' : '#cbd5e1'} stroke="#94a3b8" stroke-width="0.5" />
+        <text x={28 + i * 52} y="17.5" text-anchor="middle" font-size="7.5" font-family="monospace" font-weight="700" fill="#334155">H{i}</text>
+        <text x={28 + i * 52} y="32" text-anchor="middle" font-size="6.5" font-family="monospace" fill="#64748b">48 numbers</text>
+      {/each}
+      <text x="4" y="45" font-size="7" font-family="monospace" fill="#64748b">288 channels, grouped into the same six head slices as the Circuit Map</text>
+    </svg>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
       The token's working notes. Every layer reads these 288 numbers and writes changes back into them. The shaded bands group the numbers into the same six head slices you see as Attention Field rows and as Circuit Map squares.
     </p>
   </details>
@@ -332,8 +350,26 @@
         {@const xStart = (hIdx * 48 / 288) * CHART_WIDTH}
         {@const xWidth = (48 / 288) * CHART_WIDTH}
         {@const isHeadHighlighted = highlightedHead === hIdx}
+        {@const isHeadSevered = severedHead === hIdx}
 
-        {#if hIdx % 2 === 1}
+        {#if isHeadSevered}
+          <rect
+            x={xStart}
+            y={0}
+            width={xWidth}
+            height={CHART_HEIGHT}
+            fill="#b91c1c"
+            opacity="0.08"
+          />
+          <line
+            x1={xStart}
+            y1={1}
+            x2={xStart + xWidth}
+            y2={1}
+            stroke="#b91c1c"
+            stroke-width="2"
+          />
+        {:else if hIdx % 2 === 1}
           <rect
             x={xStart}
             y={0}
@@ -378,6 +414,22 @@
         stroke-width="1"
       />
 
+      <!-- Ghost bars: preview the 288-channel silhouette before the first pass writes real values -->
+      {#if !stepState}
+        {#each Array(288) as _, i}
+          {@const v = ghostV(i)}
+          {@const gh = Math.abs(v) * (DRAW_HEIGHT / 2) * 0.8}
+          <rect
+            x={i * (CHART_WIDTH / 288)}
+            y={v >= 0 ? ZERO_Y - gh : ZERO_Y}
+            width={Math.max(1.5, CHART_WIDTH / 288 - 0.35)}
+            height={gh}
+            fill="#94a3b8"
+            opacity="0.22"
+          />
+        {/each}
+      {/if}
+
       <!-- Bars: Precision Deep Blue (#2563eb) positive, Precision Rose (#e11d48) negative -->
       {#each bars as bar}
         {@const barWidth = CHART_WIDTH / bars.length}
@@ -411,7 +463,7 @@
     {#if !stepState}
       <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
         <span class="text-[11px] font-sans font-medium text-slate-900 bg-white/80 px-2 py-0.5 rounded">
-          Nothing here yet. Press Step or Play and each layer writes into these 288 channels
+          Faint bars preview the shape. Press Step or Play and real values land here, one layer at a time
         </span>
       </div>
     {/if}
@@ -430,10 +482,16 @@
     <div class="flex justify-between items-center text-[10px] text-slate-600 font-mono font-bold mt-0.5 px-1">
       {#each Array(6) as _, hIdx}
         <span
-          class={`w-[16.6%] text-center transition-colors ${highlightedHead === hIdx ? 'text-ink font-black' : ''}`}
-          title={`Head ${hIdx}'s slice of the vector: channels ${hIdx * 48} to ${hIdx * 48 + 47}`}
+          class={`w-[16.6%] text-center transition-colors ${
+            highlightedHead === hIdx
+              ? 'text-ink font-black'
+              : severedHead === hIdx
+              ? 'text-accent-rust font-extrabold'
+              : ''
+          }`}
+          title={`Head ${hIdx}'s slice of the vector: channels ${hIdx * 48} to ${hIdx * 48 + 47}${severedHead === hIdx ? ' · currently turned off in Act 2' : ''}`}
         >
-          H{hIdx}
+          H{hIdx}{severedHead === hIdx ? ' ✕' : ''}
         </span>
       {/each}
     </div>
@@ -443,9 +501,9 @@
   <div class="mt-2.5 pt-2 border-t border-hairline text-[11px] font-mono min-w-0">
     <div class="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
       <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-800">Best Guess So Far</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-800" title="Technical term: Logit Lens. Translates intermediate working memory into top vocabulary guesses at each layer.">Thought Evolution (Best Guess)</span>
         <span class="text-slate-300 font-bold">·</span>
-        <span class="text-slate-600 font-sans font-medium">the model's top pick after each step</span>
+        <span class="text-slate-600 font-sans font-medium">watch the model's guess mature across layers</span>
       </div>
 
       <div class="flex items-center gap-3 text-slate-800 font-bold">
@@ -462,16 +520,38 @@
 
     {#if lensHistory.length > 0}
       <!-- Depth progression: how the leading token candidate morphs L0 → L5 -->
-      <div class="mt-1.5 flex items-center gap-1 overflow-x-auto scrollbar-none pb-0.5">
+      <div class="mt-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
         {#each lensHistory as entry, i}
           {@const isLatest = i === lensHistory.length - 1}
-          <div class="flex items-center gap-1 shrink-0">
-            <div class="flex flex-col items-center px-1.5 py-0.5 rounded border transition-all duration-200 {isLatest ? 'border-ink bg-ink shadow-sm' : 'border-hairline bg-canvas-elevated'}">
-              <span class="text-[8px] font-bold uppercase tracking-wider {isLatest ? 'text-zinc-400' : 'text-ink-muted'}">{entry.label}</span>
-              <span class="text-[11px] font-bold font-sans whitespace-nowrap {isLatest ? 'text-white' : 'text-ink'}">{entry.top[0]?.tokenPiece ?? '·'}</span>
+          {@const top = entry.top[0]}
+          {@const pct = top?.prob !== undefined ? Math.round(top.prob * 100) : null}
+          {@const layerNum = parseInt(entry.label.replace(/^L(\d+).*/, '$1'), 10)}
+          {@const displayLabel = Number.isFinite(layerNum) ? `L${layerNum}` : entry.label}
+          {@const mappedHead = layerNum === 0 ? 1 : layerNum === 5 ? 3 : null}
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <div
+              role="button"
+              tabindex="0"
+              on:click={() => mappedHead !== null && dispatch('selectHead', { layer: layerNum, head: mappedHead })}
+              on:mouseenter={() => mappedHead !== null && dispatch('headFocus', { layer: layerNum, head: mappedHead })}
+              on:mouseleave={() => dispatch('headFocus', null)}
+              on:keydown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && mappedHead !== null) {
+                  dispatch('selectHead', { layer: layerNum, head: mappedHead });
+                }
+              }}
+              class="flex flex-col items-center px-2 py-1 rounded border transition-all duration-200 {isLatest ? 'border-amber-500 bg-amber-50/80 shadow-sm ring-1 ring-amber-400' : 'border-slate-200 bg-slate-50'} {mappedHead !== null ? 'cursor-pointer hover:border-amber-400 hover:shadow-xs active:scale-95' : ''}"
+              title={mappedHead !== null ? `Click to inspect L${layerNum}:H${mappedHead} attention rays · Top guess: "${top?.tokenPiece.trim() ?? ''}" (${pct ?? '?'}%)` : `${entry.label}: top guess "${top?.tokenPiece.trim() ?? ''}" (${pct ?? '?'}% confidence)`}
+            >
+              <span class="text-[8px] font-bold uppercase tracking-wider {isLatest ? 'text-amber-900 font-extrabold' : 'text-slate-500'}">{displayLabel}</span>
+              <span class="text-xs font-bold font-sans whitespace-nowrap text-ink">{top?.tokenPiece ? `"${top.tokenPiece.trim()}"` : '·'}</span>
+              {#if pct !== null}
+                <span class="text-[9px] font-mono font-semibold {isLatest ? 'text-amber-800 font-bold' : 'text-slate-500'}">{pct}%</span>
+              {/if}
             </div>
             {#if !isLatest}
-              <span class="text-slate-300 font-bold text-[10px]">→</span>
+              <span class="text-slate-400 font-bold text-xs select-none">→</span>
             {/if}
           </div>
         {/each}
@@ -480,6 +560,19 @@
       <!-- Current step top-3 candidates with step-over-step logit deltas -->
       {#if latestLens}
         <div class="mt-1.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <svg
+            viewBox="0 0 58 22"
+            class="w-14 h-[22px] shrink-0"
+            role="img"
+            title="How a guess appears: the 288 numbers are scored against all 32,000 vocabulary words, and the highest scores win"
+          >
+            <rect x="2" y="4" width="6" height="14" rx="1.5" fill="#334155" />
+            {#each [2, 5.5, 9, 12.5, 16, 19.5] as y, i}
+              <line x1="10" y1="11" x2="42" y2={y} stroke={i === 0 ? '#d97706' : '#cbd5e1'} stroke-width="1" />
+              <rect x="43" y={y - 1} width={i === 0 ? 11 : 5} height="2" rx="1" fill={i === 0 ? '#d97706' : '#cbd5e1'} />
+            {/each}
+            <text x="44" y="21.5" font-size="5" font-family="monospace" fill="#94a3b8">32k</text>
+          </svg>
           <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider shrink-0">Now:</span>
           {#each latestLens.top as pred}
             {@const delta = lensDeltaFor(pred.tokenId)}

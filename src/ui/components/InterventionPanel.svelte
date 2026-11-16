@@ -95,7 +95,7 @@
   }
 </script>
 
-<div class="space-y-2.5">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
   <!-- Interactive 6x6 Circuit Board Matrix with Hover Brushing -->
   <HeadGrid
     bind:selectedLayer
@@ -119,7 +119,7 @@
     <!-- Header with High-Contrast Typography -->
     <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
       <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-        <span class="text-ink font-bold text-xs uppercase tracking-wider">Causal Intervention</span>
+        <span class="text-ink font-serif font-bold text-[15px] tracking-tight" title="Causal intervention: see what changes when a specific attention head is turned off.">Turn Off a Head</span>
         <span class="text-hairline-bright font-bold">/</span>
         <span class="text-ink-secondary font-sans font-bold">
           Head L{selectedLayer}:H{selectedHead} Switched Off
@@ -143,15 +143,65 @@
       The experiment bench. Cut a head, measure the change.
     </p>
     <details class="text-xs mb-2">
-      <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+      <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+        <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+        <span>What's this?</span>
+      </summary>
+      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
         The experiment bench. Pick a head on the Circuit Map and this runs the model twice: once normally, once with that head's 48 channels zeroed. The numbers show exactly what the head was contributing.
       </p>
     </details>
 
     {#if comparisonResult}
       {@const maxProb = Math.max(...comparisonResult.top3Pairs.flatMap((p) => [p.baselineProb, p.ablatedProb]), 0.01)}
+      {@const beforePiece = comparisonResult.baselineTop.tokenPiece.trim().slice(0, 8)}
+      {@const afterPiece = comparisonResult.ablatedTop.tokenPiece.trim().slice(0, 8)}
       <div class="space-y-2.5 transition-all duration-200">
+        <!-- Experiment diagram: which head was cut, and what came out before vs after -->
+        <svg
+          viewBox="0 0 340 44"
+          class="w-full h-11"
+          role="img"
+          aria-label={`Head ${selectedHead} of layer ${selectedLayer} was switched off; the guess changed from "${beforePiece}" to "${afterPiece}"`}
+        >
+          <!-- six heads of the layer, target crossed out -->
+          {#each Array(6) as _, i}
+            <rect
+              x={4 + i * 24}
+              y="8"
+              width="20"
+              height="20"
+              rx="3"
+              fill={i === comparisonResult.targetHead ? '#b91c1c' : '#334155'}
+              opacity={i === comparisonResult.targetHead ? 0.95 : 0.55}
+            />
+            <text x={14 + i * 24} y="22" text-anchor="middle" font-size="8" font-family="monospace" font-weight="700" fill="white">H{i}</text>
+            {#if i === comparisonResult.targetHead}
+              <line x1={8 + i * 24} y1="11" x2={20 + i * 24} y2="25" stroke="white" stroke-width="1.6" />
+              <line x1={20 + i * 24} y1="11" x2={8 + i * 24} y2="25" stroke="white" stroke-width="1.6" />
+            {/if}
+          {/each}
+          <text x="4" y="40" font-size="6.5" font-family="monospace" fill="#64748b">L{selectedLayer} · H{comparisonResult.targetHead} off</text>
+
+          <!-- arrow to before -->
+          <line x1="152" y1="18" x2="168" y2="18" stroke="#94a3b8" stroke-width="1.5" />
+          <polygon points="168,15 168,21 175,18" fill="#94a3b8" />
+
+          <!-- before chip -->
+          <rect x="176" y="6" width="66" height="26" rx="4" fill="white" stroke="#94a3b8" />
+          <text x="209" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill="#1e293b">"{beforePiece}"</text>
+          <text x="209" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{(comparisonResult.baselineTopProb * 100).toFixed(0)}% before</text>
+
+          <!-- arrow to after -->
+          <line x1="246" y1="18" x2="262" y2="18" stroke="#94a3b8" stroke-width="1.5" />
+          <polygon points="262,15 262,21 269,18" fill="#94a3b8" />
+
+          <!-- after chip -->
+          <rect x="270" y="6" width="66" height="26" rx="4" fill={comparisonResult.predictionFlipped ? '#fff7ed' : 'white'} stroke={comparisonResult.predictionFlipped ? '#c2410c' : '#94a3b8'} />
+          <text x="303" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={comparisonResult.predictionFlipped ? '#9a3412' : '#1e293b'}>"{afterPiece}"</text>
+          <text x="303" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{(comparisonResult.ablatedTopProb * 100).toFixed(0)}% after</text>
+        </svg>
+
         <!-- Plain-English verdict -->
         <div class={`rounded p-2 text-xs font-sans border ${
           comparisonResult.predictionFlipped
@@ -204,9 +254,9 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono mt-1.5">
             <div
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
-              title="Total change across all 32,000 output scores when this head is switched off"
+              title="Total change across all 32,000 output scores when this head is switched off (L2 difference)"
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Total Shift Δ</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Total Shift</div>
               <div class="text-base font-bold text-ink mt-0.5">
                 {comparisonResult.l2Diff.toFixed(2)}
               </div>
@@ -216,7 +266,7 @@
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
               title="Largest change to any single token's score"
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Biggest Hit</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Largest Shift</div>
               <div class="text-base font-bold text-accent-rust mt-0.5">
                 {comparisonResult.maxAbsDiff.toFixed(2)}
               </div>
@@ -224,9 +274,9 @@
 
             <div
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
-              title="Each head owns 48 of the 288 vector channels. Switching it off zeroes these numbers"
+              title="Each head controls 48 of the 288 working memory numbers. Switching it off sets these to 0"
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Channels Cut</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Signals Cut</div>
               <div class="text-xs font-bold text-ink-secondary mt-1">
                 {comparisonResult.targetHead * 48}..{(comparisonResult.targetHead + 1) * 48 - 1}
               </div>
@@ -236,7 +286,7 @@
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
               title={`Tested on position ${comparisonResult.testedPos} ("${comparisonResult.testedPiece.trim() || '<s>'}") across the full sequence of words seen so far.`}
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Tested On</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Tested Word</div>
               <div class="text-xs font-bold text-ink-secondary mt-1 truncate">
                 pos {comparisonResult.testedPos} ({comparisonResult.testedPiece.trim() || '<s>'})
               </div>

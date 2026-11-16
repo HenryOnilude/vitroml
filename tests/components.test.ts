@@ -48,7 +48,7 @@ function makeExecState(overrides: Partial<ExecutionState> = {}): ExecutionState 
 describe('AttentionMap component', () => {
   it('shows a self-explanatory empty state before any attention pass', () => {
     const { getByText } = render(AttentionMap, { props: { stepState: null } });
-    getByText(/Nothing here yet/);
+    getByText(/Ghost rows preview/);
     getByText(/waiting for the first attention pass/);
   });
 

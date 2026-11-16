@@ -13,7 +13,7 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev -- --port 5199 --strictPort',
     url: 'http://localhost:5199',
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 120_000,
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],

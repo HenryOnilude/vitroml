@@ -14,6 +14,8 @@
   import ResidualStreamView from './ui/components/ResidualStreamView.svelte';
   import InterventionPanel from './ui/components/InterventionPanel.svelte';
   import AttentionMap from './ui/components/AttentionMap.svelte';
+  import GuidedTour from './ui/components/GuidedTour.svelte';
+  import MiniTransport from './ui/components/MiniTransport.svelte';
 
   let isLoading: boolean = true;
   let loadingProgress: string = 'Initializing engine...';
@@ -39,6 +41,44 @@
   // Cross-view brushing state: hovered head index (0..5)
   let brushedHead: number | null = null;
 
+  // Active attention scores preserved across steps for Attention Rays
+  let lastAttnScores: import('./engine/tensor').Tensor | null = null;
+  let lastAttnLayer: number = 0;
+  $: if ($stateStore?.currentStep?.phase === 'post-attention' && $stateStore.currentStep.attentionScores) {
+    lastAttnScores = $stateStore.currentStep.attentionScores;
+    lastAttnLayer = $stateStore.currentStep.layer;
+  }
+
+  $: activeHeadRays = (() => {
+    if (!lastAttnScores || currentPos <= 0) return null;
+    const h = brushedHead ?? activeLensHead ?? activeSeveredHead ?? 0;
+    const seqLen = lastAttnScores.shape[1];
+    const weights: number[] = [];
+    const off = lastAttnScores.offset + h * seqLen;
+    for (let t = 0; t <= currentPos; t++) {
+      weights.push(lastAttnScores.data[off + t]);
+    }
+    return { layer: lastAttnLayer, head: h, weights };
+  })();
+
+  function handleLensHeadFocus(event: CustomEvent<{ layer: number; head: number } | null>) {
+    if (!event.detail) {
+      activeLensHead = null;
+      return;
+    }
+    activeLensHead = event.detail.head;
+    brushedHead = event.detail.head;
+  }
+
+  // Phase Focus: guide user attention to the active computation stage
+  $: focusMode = (() => {
+    const phase = $stateStore?.currentStep?.phase;
+    if (phase === 'post-attention') return 'attention' as const;
+    if (phase === 'post-ffn') return 'memory' as const;
+    if ($stateStore?.status === 'completed') return 'prediction' as const;
+    return null;
+  })();
+
   // Mobile act switcher: on <lg only one column is visible at a time
   let mobileAct: 1 | 2 = 1;
 
@@ -49,7 +89,12 @@
   let showTryAnother = false;
   $: if ($stateStore?.status === 'completed' && !seenFirstComplete) {
     seenFirstComplete = true;
-    if (!act2Open) act2Hint = true;
+    if (!act2Open) {
+      act2Hint = true;
+      tick().then(() => {
+        document.getElementById('panel-act2-teaser')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
   }
   function openAct2() {
     act2Open = true;
@@ -76,11 +121,18 @@
   let highlightTimer: ReturnType<typeof setTimeout> | null = null;
   let interventionRef: InterventionPanel | null = null;
 
+  let activeSeveredHead: number | null = null;
+  let activeLensHead: number | null = null;
+
   function handleWhySelectHead(event: CustomEvent<{ layer: number; head: number }>) {
     const { layer, head } = event.detail;
     mobileAct = 2;
+    activeSeveredHead = head;
+    openAct2();
     interventionRef?.selectHead(layer, head);
   }
+
+  let tourOpen = false;
 
   async function handleGuideStep(event: CustomEvent<1 | 2 | 3>) {
     const step = event.detail;
@@ -90,6 +142,7 @@
       await tick();
     }
     if (step === 2) {
+      activeSeveredHead = curated.head;
       interventionRef?.selectHead(curated.layer, curated.head);
       showTryAnother = true;
     }
@@ -286,6 +339,27 @@
     }
   });
 
+  // Chapter compass: the active chapter is the last marker above 40% of the viewport
+  let activeChapter = 1;
+  let toolbarEl: HTMLDivElement | null = null;
+  let controlsPassed = false;
+  onMount(() => {
+    const updateChapter = () => {
+      const markers = document.querySelectorAll('[data-chapter]');
+      let current = 1;
+      for (const m of markers) {
+        if (m.getBoundingClientRect().top <= window.innerHeight * 0.4) {
+          current = Number((m as HTMLElement).dataset.chapter);
+        }
+      }
+      activeChapter = current;
+      controlsPassed = toolbarEl ? toolbarEl.getBoundingClientRect().bottom < 0 : false;
+    };
+    window.addEventListener('scroll', updateChapter, { passive: true });
+    updateChapter();
+    return () => window.removeEventListener('scroll', updateChapter);
+  });
+
   function handleTokensChange(event: CustomEvent<{ prompt: string; tokens: number[] }>) {
     currentTokens = event.detail.tokens;
     currentPrompt = event.detail.prompt;
@@ -306,12 +380,12 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 min-h-[3rem] py-1.5 flex flex-wrap items-center justify-between gap-2 min-w-0">
       <!-- Left: Brand / Wordmark -->
       <div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 min-w-0">
-        <span class="font-extrabold text-sm tracking-tight text-ink font-mono uppercase">
+        <span class="font-serif font-black text-lg tracking-tight text-ink">
           Vitro
         </span>
         <span class="text-hairline-bright font-mono text-xs">/</span>
-        <span class="text-xs text-ink-secondary font-semibold truncate">
-          stories15M · Mechanistic Interpretability Workbench
+        <span class="text-xs text-ink-secondary font-semibold truncate" title="Mechanistic interpretability workbench for stories15M">
+          stories15M · Inside an AI Storyteller
         </span>
       </div>
 
@@ -353,25 +427,44 @@
       <!-- Unified Architectural Layout (Zero Fluff) -->
       <div class="space-y-3">
         <!-- 0. Hero: what this is and what you can do with it -->
-        <HeroSection {step2Label} on:guideStep={handleGuideStep} />
+        <HeroSection {step2Label} on:guideStep={handleGuideStep} on:tour={() => (tourOpen = true)} />
 
-        <!-- 1. Interactive Control Strip -->
-        <WorkbenchToolbar
-          {tokenizer}
-          {controller}
-          promptText="Once upon a time"
-          {currentPos}
-          {generatedTokens}
-          highlighted={highlightedTarget === 'controls'}
-          on:tokensChange={handleTokensChange}
-          on:advance={handleAdvance}
-          on:userPlay={() => (autoGen = true)}
-          on:userPause={() => (autoGen = false)}
-          on:userStep={() => (autoGen = false)}
-          on:userReset={resetGenerationState}
-        />
+        <!-- Chapters: numbered markers, one idea at a time -->
+        <div class="relative space-y-3">
 
-        <!-- 2. Live Narrative Strip: what the model is doing right now -->
+        <!-- Chapter 1: give the model a story start -->
+        <div id="chapter-1" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="1">
+          <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">1</span>
+          <span class="font-serif font-bold text-lg text-ink tracking-tight">Give it a story start</span>
+          <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+          <span class="text-[10px] font-sans text-ink-muted">type a beginning, then press play</span>
+        </div>
+        <div bind:this={toolbarEl}>
+          <WorkbenchToolbar
+            {tokenizer}
+            {controller}
+            promptText="Once upon a time"
+            {currentPos}
+            {generatedTokens}
+            highlighted={highlightedTarget === 'controls'}
+            attentionRays={activeHeadRays}
+            {focusMode}
+            on:tokensChange={handleTokensChange}
+            on:advance={handleAdvance}
+            on:userPlay={() => (autoGen = true)}
+            on:userPause={() => (autoGen = false)}
+            on:userStep={() => (autoGen = false)}
+            on:userReset={resetGenerationState}
+          />
+        </div>
+
+        <!-- Chapter 2: watch one word travel through the model, narrated live -->
+        <div id="chapter-2" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="2">
+          <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">2</span>
+          <span class="font-serif font-bold text-lg text-ink tracking-tight">Watch it think</span>
+          <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+          <span class="text-[10px] font-sans text-ink-muted">one word's journey through 6 layers, live</span>
+        </div>
         <NarrativeBar
           state={$stateStore ?? null}
           {currentToken}
@@ -387,67 +480,75 @@
         />
 
         <!-- Mobile act switcher: pick one act at a time on narrow screens -->
-        <div class="lg:hidden flex rounded border border-hairline overflow-hidden text-[11px] font-mono font-bold bg-white">
+        <div class="lg:hidden flex rounded border border-hairline overflow-hidden text-xs font-mono font-bold bg-white shadow-subtle min-h-[44px]">
           <button
             type="button"
             on:click={() => (mobileAct = 1)}
-            class={`flex-1 px-3 py-1.5 transition-colors ${mobileAct === 1 ? 'bg-ink text-white' : 'text-ink-secondary hover:text-ink'}`}
+            class={`flex-1 min-h-[44px] px-3 py-2.5 transition-colors flex items-center justify-center active:scale-[0.99] ${mobileAct === 1 ? 'bg-ink text-white font-extrabold' : 'text-ink-secondary hover:text-ink hover:bg-slate-50'}`}
           >
             Act 1 · Inside
           </button>
           <button
             type="button"
             on:click={() => (mobileAct = 2)}
-            class={`flex-1 px-3 py-1.5 transition-colors border-l border-hairline ${mobileAct === 2 ? 'bg-ink text-white' : 'text-ink-secondary hover:text-ink'}`}
+            class={`flex-1 min-h-[44px] px-3 py-2.5 transition-colors border-l border-hairline flex items-center justify-center active:scale-[0.99] ${mobileAct === 2 ? 'bg-ink text-white font-extrabold' : 'text-ink-secondary hover:text-ink hover:bg-slate-50'}`}
           >
             Act 2 · Experiment
           </button>
         </div>
 
-        <!-- 4. Dual Data Viewports: watch the computation (left), then intervene (right) -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
-          <div class={`flex-col gap-3 min-w-0 ${mobileAct === 1 ? 'flex' : 'hidden'} lg:flex`}>
-            <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-              <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Inside the computation</span>
-              <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
-              <span class="text-[10px] font-sans text-ink-muted">the same six heads appear in every view</span>
-            </div>
+        <!-- 4. Act 1: watch the computation with both instruments side by side -->
+        <div class={`space-y-3 min-w-0 ${mobileAct === 1 ? '' : 'hidden'} lg:block`}>
+          <div id="chapter-3" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="3">
+            <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">3</span>
+            <span class="font-serif font-bold text-lg text-ink tracking-tight">Act 1 · Look inside</span>
+            <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+            <span class="text-[10px] font-sans text-ink-muted">the same six heads appear in every view</span>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
             <ResidualStreamView
               stepState={$stateStore?.currentStep ?? null}
               highlightedHead={brushedHead}
+              severedHead={act2Open ? activeSeveredHead : null}
+              {focusMode}
               {config}
               {weights}
               {tokenizer}
               {currentToken}
               on:selectHead={handleWhySelectHead}
+              on:headFocus={handleLensHeadFocus}
             />
 
-            <div class="flex-1 min-w-0">
-              <AttentionMap
-                stepState={$stateStore?.currentStep ?? null}
-                {positionLabels}
-                highlightedHead={brushedHead}
-              />
-            </div>
+            <AttentionMap
+              stepState={$stateStore?.currentStep ?? null}
+              {positionLabels}
+              highlightedHead={brushedHead}
+              severedHead={act2Open ? activeSeveredHead : null}
+              {focusMode}
+            />
           </div>
+        </div>
 
-          <div class={`space-y-3 min-w-0 ${mobileAct === 2 ? '' : 'hidden'} lg:block`}>
-            <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-              <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Run the experiment</span>
-              <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
-              <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
-            </div>
-            {#if !act2Open}
-              <button
-                type="button"
-                id="panel-act2-teaser"
-                on:click={openAct2}
-                class={`w-full text-left bg-white border rounded p-4 shadow-subtle transition-all duration-300 hover:border-amber-400 ${
-                  act2Hint ? 'ring-2 ring-amber-400/70 border-amber-400 animate-pulse' : 'border-hairline'
-                }`}
-              >
+        <!-- 5. Act 2: the experiment, a full-width section below -->
+        <div class={`space-y-3 min-w-0 ${mobileAct === 2 ? '' : 'hidden'} lg:block`}>
+          <div id="chapter-4" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="4">
+            <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">4</span>
+            <span class="font-serif font-bold text-lg text-ink tracking-tight">Act 2 · Break it</span>
+            <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+            <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
+          </div>
+          {#if !act2Open}
+            <button
+              type="button"
+              id="panel-act2-teaser"
+              on:click={openAct2}
+              class={`w-full flex items-center justify-between gap-4 text-left bg-white border rounded px-4 py-3.5 shadow-subtle transition-all duration-300 hover:border-amber-400 hover:shadow-md group ${
+                act2Hint ? 'ring-2 ring-amber-400/70 border-amber-400 animate-pulse' : 'border-hairline'
+              }`}
+            >
+              <span class="min-w-0">
                 <span class="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-accent-bronze">Act 2</span>
-                <span class="block text-sm font-bold text-ink font-serif mt-1">Now try breaking it</span>
+                <span class="block text-sm font-bold text-ink font-serif mt-0.5">Now try breaking it</span>
                 <span class="block text-[11px] text-ink-secondary font-sans mt-0.5">
                   {#if act2Hint}
                     Now switch a head off and see what changes.
@@ -455,38 +556,88 @@
                     Switch one attention head off and see what changes.
                   {/if}
                 </span>
-              </button>
-            {:else}
-              {#if showTryAnother}
-                <div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                  <span class="text-[10px] font-sans font-medium text-amber-900">Now try another square.</span>
-                  <button
-                    type="button"
-                    on:click={() => (showTryAnother = false)}
-                    class="text-amber-700 hover:text-amber-950 text-[10px] font-mono font-bold px-1"
-                    aria-label="Dismiss hint"
-                  >✕</button>
-                </div>
-              {/if}
-              <InterventionPanel
-                bind:this={interventionRef}
-                {config}
-                {weights}
-                {tokenizer}
-                {currentActiveLayer}
-                importance={headImportance}
-                tokens={inputSequence}
-                activePos={currentPos}
-                {highlightedTarget}
-                on:headHover={handleHeadHover}
-                on:headSelect={() => (showTryAnother = false)}
-              />
+              </span>
+              <span class="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold font-mono text-accent-bronze group-hover:text-amber-800 border border-amber-300 group-hover:border-amber-500 rounded px-3 py-2 transition-colors">
+                Open →
+              </span>
+            </button>
+          {:else}
+            {#if showTryAnother}
+              <div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                <span class="text-[10px] font-sans font-medium text-amber-900">Now try another square.</span>
+                <button
+                  type="button"
+                  on:click={() => (showTryAnother = false)}
+                  class="text-amber-700 hover:text-amber-950 text-[10px] font-mono font-bold px-1"
+                  aria-label="Dismiss hint"
+                >✕</button>
+              </div>
             {/if}
-          </div>
+            <InterventionPanel
+              bind:this={interventionRef}
+              {config}
+              {weights}
+              {tokenizer}
+              {currentActiveLayer}
+              importance={headImportance}
+              tokens={inputSequence}
+              activePos={currentPos}
+              {highlightedTarget}
+              on:headHover={handleHeadHover}
+              on:headSelect={(e) => {
+                activeSeveredHead = e.detail.head;
+                showTryAnother = false;
+              }}
+            />
+          {/if}
+        </div>
         </div>
       </div>
     {/if}
   </main>
+
+  <!-- Chapter compass: persistent 'you are here' rail on wide screens -->
+  {#if !isLoading && !loadError}
+    <nav
+      class="hidden min-[1440px]:flex fixed left-4 top-1/2 -translate-y-1/2 flex-col items-center gap-1 z-40"
+      aria-label="Page chapters"
+    >
+      {#each [
+        { n: 1, label: 'Give it a story start' },
+        { n: 2, label: 'Watch it think' },
+        { n: 3, label: 'Act 1 · Look inside' },
+        { n: 4, label: 'Act 2 · Break it' },
+      ] as ch}
+        <a
+          href={`#chapter-${ch.n}`}
+          title={ch.label}
+          class={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono font-bold transition-all duration-300 ${
+            activeChapter === ch.n
+              ? 'bg-ink text-white scale-110 shadow-sm'
+              : 'bg-white text-ink-muted border border-hairline hover:border-ink hover:text-ink'
+          }`}
+        >
+          {ch.n}
+        </a>
+        {#if ch.n < 4}<span class="w-px h-5 bg-hairline"></span>{/if}
+      {/each}
+    </nav>
+  {/if}
+
+  <!-- Floating transport: Step/Play stays reachable after the controls scroll away -->
+  {#if controlsPassed && !isLoading && !loadError && !tourOpen}
+    <MiniTransport
+      {controller}
+      on:advance={handleAdvance}
+      on:userPlay={() => (autoGen = true)}
+      on:userPause={() => (autoGen = false)}
+      on:userStep={() => (autoGen = false)}
+      on:userReset={resetGenerationState}
+    />
+  {/if}
+
+  <!-- 5-slide guided tour: one concept at a time, with simple diagrams -->
+  <GuidedTour open={tourOpen} on:close={() => (tourOpen = false)} on:done={() => (tourOpen = false)} />
 
   <!-- High-Contrast Technical Telemetry Footer -->
   <footer class="border-t border-hairline py-3 px-4 sm:px-6 bg-white text-xs font-mono">

@@ -12,6 +12,7 @@ export interface TokenPrediction {
   tokenPiece: string;
   logit: number;
   delta?: number;
+  prob?: number;
 }
 
 export interface AblationComparisonResult {
@@ -66,9 +67,19 @@ export function computeLogitLens(
     config.vocabSize
   );
 
-  // 3. Extract top-K
+  // 3. Extract top-K and compute softmax probabilities
   const logitsData = logitsTensor.data;
   const logitsOff = logitsTensor.offset;
+
+  let maxLogit = -Infinity;
+  for (let i = 0; i < config.vocabSize; i++) {
+    const l = logitsData[logitsOff + i];
+    if (l > maxLogit) maxLogit = l;
+  }
+  let sumExp = 0;
+  for (let i = 0; i < config.vocabSize; i++) {
+    sumExp += Math.exp(logitsData[logitsOff + i] - maxLogit);
+  }
 
   const ranked: { idx: number; logit: number }[] = [];
   for (let i = 0; i < config.vocabSize; i++) {
@@ -82,6 +93,7 @@ export function computeLogitLens(
     tokenId: item.idx,
     tokenPiece: tokenizer.decode(prevToken, item.idx),
     logit: item.logit,
+    prob: sumExp > 0 ? Math.exp(item.logit - maxLogit) / sumExp : undefined,
   }));
 }
 

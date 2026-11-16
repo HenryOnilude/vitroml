@@ -69,19 +69,19 @@
       // post-ffn
       if (layer === 0) {
         return {
-          phaseTag: `LAYER ${layer} · FFN`,
+          phaseTag: `LAYER ${layer} · MEMORY (FFN)`,
           headline: 'First Memory Lookup',
           explanation: `The vector expands 288 → 768 through a gated filter (SwiGLU). This is where the model starts mixing in patterns it learned during training.`,
         };
       } else if (layer < 4) {
         return {
-          phaseTag: `LAYER ${layer} · FFN`,
+          phaseTag: `LAYER ${layer} · MEMORY (FFN)`,
           headline: 'Memory Lookup',
           explanation: `These neurons work like an associative memory. They inject story patterns learned from TinyStories into the stream.`,
         };
       } else {
         return {
-          phaseTag: `LAYER ${layer} · FFN`,
+          phaseTag: `LAYER ${layer} · MEMORY (FFN)`,
           headline: 'Last Refinement Pass',
           explanation: `The final processing step. The stream now carries the model's settled guess about which word comes next.`,
         };
@@ -116,7 +116,7 @@
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all duration-200">
   <!-- Left Narrative Text -->
   <div class="flex items-start gap-3 min-w-0">
-    <div class="w-2 h-2 rounded-full bg-accent-bronze mt-1 shrink-0 animate-pulse"></div>
+    <div class="w-2 h-2 rounded-full bg-accent-clay mt-1 shrink-0 animate-pulse"></div>
 
     <div class="space-y-0.5 min-w-0">
       {#key narrative.headline}
@@ -126,7 +126,7 @@
               {narrative.phaseTag}
             </span>
             <span class="text-slate-300 font-bold">•</span>
-            <span class="text-sm font-bold text-ink tracking-tight font-serif">
+            <span class="text-[15px] font-bold text-ink tracking-tight font-serif">
               {narrative.headline}
             </span>
           </div>
@@ -175,7 +175,7 @@
       </div>
       <div class="h-1 w-full bg-canvas-elevated border border-hairline rounded-full overflow-hidden">
         <div
-          class="h-full bg-accent-bronze transition-all duration-300 ease-out"
+          class="h-full bg-accent-clay transition-all duration-300 ease-out"
           style={`width: ${progressPct}%`}
         ></div>
       </div>

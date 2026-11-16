@@ -4,6 +4,8 @@
   export let stepState: StepState | null = null;
   export let positionLabels: { text: string; id: number }[] = [];
   export let highlightedHead: number | null = null;
+  export let severedHead: number | null = null;
+  export let focusMode: 'attention' | 'memory' | 'prediction' | null = null;
 
   interface AttnSnapshot {
     layer: number;
@@ -68,21 +70,31 @@
   }
 </script>
 
-<div class="bg-white border border-hairline rounded p-3 shadow-subtle h-full flex flex-col">
+<div class={`bg-white border rounded p-3 shadow-subtle h-full flex flex-col transition-all duration-300 ${focusMode === 'attention' ? 'border-amber-400 ring-2 ring-amber-400/50' : 'border-hairline'} ${focusMode === 'memory' ? 'border-hairline opacity-60 grayscale-[0.3]' : 'border-hairline'} ${focusMode === 'prediction' ? 'border-hairline opacity-60 grayscale-[0.3]' : 'border-hairline'}`}>
   <div class="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider">Attention Field</span>
+      <span class="text-ink font-serif font-bold text-[15px] tracking-tight" title="Technical term: Attention Field. Shows where each of the 6 attention heads looks back across earlier words.">Where It Looks Back</span>
       <span class="text-slate-300 font-bold">/</span>
       <span class="text-ink-secondary font-sans font-semibold text-xs">
+        <span class="font-semibold">Attention Field</span> ·
         {#if lastAttn}
-          L{lastAttn.layer} · the token at position {lastAttn.pos} looks back over {lastAttn.pos + 1} token{lastAttn.pos === 0 ? '' : 's'}
+          Layer {lastAttn.layer} · looks back over {lastAttn.pos + 1} token{lastAttn.pos === 0 ? '' : 's'}
         {:else}
           6 heads · waiting for the first attention pass
         {/if}
       </span>
     </div>
-    <span class="text-[10px] font-bold text-ink-muted uppercase tracking-wider" title="Each row is one head; darker cells get more of that head's attention">
-      darker = stronger focus
+    <span
+      class="flex items-center gap-1 shrink-0"
+      title="Color scale: each row is one head; brighter cells get more of that head's attention"
+    >
+      <span class="text-[9px] font-bold text-ink-muted uppercase tracking-wider">weak</span>
+      <svg viewBox="0 0 64 8" class="w-16 h-2 rounded-[2px] overflow-hidden" aria-hidden="true">
+        {#each Array(16) as _, i}
+          <rect x={i * 4} y="0" width="4.5" height="8" fill={cividis(i / 15)} />
+        {/each}
+      </svg>
+      <span class="text-[9px] font-bold text-ink-muted uppercase tracking-wider">strong</span>
     </span>
   </div>
 
@@ -90,26 +102,60 @@
     Each row is one head, showing where it looked.
   </p>
   <details class="text-xs mb-2">
-    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+    <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+      <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+      <span>What's this?</span>
+    </summary>
+    <svg viewBox="0 0 320 66" class="w-full max-w-sm h-auto mt-1.5" aria-hidden="true">
+      <!-- one head looking back -->
+      <rect x="14" y="30" width="38" height="20" rx="4" fill="#334155" />
+      <text x="33" y="44" text-anchor="middle" font-size="8.5" font-family="sans-serif" fill="white">The</text>
+      <rect x="60" y="30" width="46" height="20" rx="4" fill="#334155" />
+      <text x="83" y="44" text-anchor="middle" font-size="8.5" font-family="sans-serif" fill="white">little</text>
+      <rect x="114" y="30" width="40" height="20" rx="4" fill="#d97706" />
+      <text x="134" y="44" text-anchor="middle" font-size="8.5" font-family="sans-serif" fill="white">girl</text>
+      <path d="M134 28 C 134 8, 33 8, 33 28" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.8" />
+      <path d="M134 28 C 134 14, 83 14, 83 28" fill="none" stroke="#d97706" stroke-width="1.2" opacity="0.5" />
+      <text x="170" y="36" font-size="7.5" font-family="monospace" fill="#64748b">"girl" looks back at "The" and "little"</text>
+      <text x="170" y="47" font-size="7.5" font-family="monospace" fill="#64748b">each row below = one head doing this</text>
+    </svg>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
       Each row is one attention head, the same six heads as the Circuit Map squares. It shows which earlier tokens that head looks at. The outlined cell is its favorite, and the arrow names its top focus.
     </p>
   </details>
 
   {#if !lastAttn}
-    <div class="flex-1 flex items-center justify-center bg-slate-50 border border-slate-200 rounded shadow-inner">
-      <span class="text-[11px] font-sans font-medium text-slate-900 bg-white/80 px-2 py-0.5 rounded text-center max-w-xs">
-        Nothing here yet. Step into a layer's attention phase and each row lights up, showing where that head looked.
-      </span>
+    <div class="relative flex-1 bg-slate-50 border border-slate-200 rounded shadow-inner p-3 overflow-hidden">
+      <!-- Ghost rows: preview the six-head attention field before the first pass -->
+      <div class="space-y-1" aria-hidden="true">
+        {#each Array(6) as _, h}
+          <div class="flex items-center gap-2">
+            <span class="text-[9px] font-mono font-bold w-6 shrink-0 text-slate-300">–</span>
+            <div class="flex-1 flex gap-[2px]">
+              {#each Array(8) as _, t}
+                {@const w = Math.exp(-Math.pow(t - (1.4 + h * 0.95), 2) / 2.6)}
+                <div class="h-4 flex-1 rounded-[1px]" style={`background: rgba(100,116,139,${0.08 + w * 0.4})`}></div>
+              {/each}
+            </div>
+            <span class="w-24 shrink-0"></span>
+          </div>
+        {/each}
+      </div>
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span class="text-[11px] font-sans font-medium text-slate-900 bg-white/85 px-2 py-0.5 rounded text-center max-w-xs">
+          Ghost rows preview the layout. Step into a layer's attention phase and each row lights up, showing where that head looked.
+        </span>
+      </div>
     </div>
   {:else}
     <div class="space-y-1">
       {#each lastAttn.rows as row, h}
         {@const isHighlighted = highlightedHead === h}
+        {@const isSevered = severedHead === h}
         {@const focus = argmax(row)}
         <div class={`flex items-center gap-2 transition-opacity ${highlightedHead !== null && !isHighlighted ? 'opacity-30' : ''}`}>
-          <span class={`text-[9px] font-mono font-bold w-6 shrink-0 ${isHighlighted ? 'text-accent-bronze' : 'text-ink-muted'}`}>
-            H{h}
+          <span class={`text-[9px] font-mono font-bold w-6 shrink-0 ${isSevered ? 'text-accent-rust' : isHighlighted ? 'text-accent-bronze' : 'text-ink-muted'}`} title={isSevered ? `Head ${h} is turned off in the experiment` : undefined}>
+            H{h}{isSevered ? ' ✕' : ''}
           </span>
           <div class="flex-1 flex gap-[2px]">
             {#each row as score, t}

@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { Tokenizer } from '../../engine/tokenizer';
   import type { ForwardController } from '../../bridge/controller';
+  import { transportStep, transportPlay, transportPause, transportReset } from '../transport';
 
   export let tokenizer: Tokenizer | null = null;
   export let controller: ForwardController | null = null;
@@ -9,6 +10,8 @@
   export let currentPos: number = 0;
   export let generatedTokens: { id: number; piece: string }[] = [];
   export let highlighted: boolean = false;
+  export let attentionRays: { layer: number; head: number; weights: number[] } | null = null;
+  export let focusMode: 'attention' | 'memory' | 'prediction' | null = null;
 
   const dispatch = createEventDispatcher<{
     tokensChange: { prompt: string; tokens: number[] };
@@ -39,6 +42,44 @@
 
   let tokenItems: TokenDisplay[] = [];
   let tokenStrip: HTMLElement | null = null;
+  let chipEls: Record<number, HTMLElement> = {};
+
+  interface ArcPath {
+    d: string;
+    targetX: number;
+    targetY: number;
+    weight: number;
+    isTop: boolean;
+  }
+  let arcPaths: ArcPath[] = [];
+
+  $: if (attentionRays && tokenStrip && chipEls[currentPos]) {
+    const fromEl = chipEls[currentPos];
+    const fromX = fromEl.offsetLeft + fromEl.offsetWidth / 2;
+    const y = 26;
+    const weights = attentionRays.weights;
+    const maxW = Math.max(...weights);
+    const paths: ArcPath[] = [];
+
+    for (let t = 0; t < currentPos; t++) {
+      const toEl = chipEls[t];
+      const w = weights[t] ?? 0;
+      if (!toEl || w < 0.04) continue;
+      const toX = toEl.offsetLeft + toEl.offsetWidth / 2;
+      const dx = Math.abs(fromX - toX);
+      const h = Math.min(22, Math.max(8, dx * 0.2));
+      paths.push({
+        d: `M ${fromX} ${y} C ${fromX} ${y - h}, ${toX} ${y - h}, ${toX} ${y}`,
+        targetX: toX,
+        targetY: y,
+        weight: w,
+        isTop: w === maxW,
+      });
+    }
+    arcPaths = paths;
+  } else {
+    arcPaths = [];
+  }
 
   // Keep the newest token in view as the stream grows
   $: if (tokenStrip && (generatedTokens.length || tokenItems.length)) {
@@ -59,45 +100,13 @@
 
   let stateStore: ForwardController['state'] | null = null;
   $: stateStore = controller ? controller.state : null;
+  $: status = $stateStore?.status;
 
-  function handleStep() {
-    if (!controller) return;
-    if ($stateStore?.status === 'completed') {
-      dispatch('advance', { resume: 'step' });
-      return;
-    }
-    dispatch('userStep');
-    if ($stateStore?.status === 'idle') {
-      controller.start(1, 0);
-    }
-    controller.step();
-  }
-
-  function handlePlay() {
-    if (!controller) return;
-    if ($stateStore?.status === 'completed') {
-      dispatch('advance', { resume: 'play' });
-      return;
-    }
-    dispatch('userPlay');
-    if ($stateStore?.status === 'idle') {
-      controller.start(1, 0);
-    }
-    controller.play();
-  }
-
-  function handlePause() {
-    if (!controller) return;
-    dispatch('userPause');
-    controller.pause();
-  }
-
-  function handleReset() {
-    if (!controller) return;
-    dispatch('userReset');
-    controller.reset();
-    controller.start(1, 0);
-  }
+  const emit = (t: any, d?: any) => dispatch(t, d);
+  const handleStep = () => transportStep(controller, status, emit);
+  const handlePlay = () => transportPlay(controller, status, emit);
+  const handlePause = () => transportPause(controller, emit);
+  const handleReset = () => transportReset(controller, emit);
 
   function selectPreset(preset: string) {
     promptText = preset;
@@ -108,13 +117,13 @@
   id="panel-controls"
   class={`bg-white border rounded shadow-subtle transition-all duration-300 ${
     highlighted ? 'border-amber-500 ring-2 ring-amber-400/70' : 'border-hairline'
-  }`}
+  } ${focusMode === 'attention' ? 'ring-2 ring-amber-400/50' : ''} ${focusMode === 'memory' || focusMode === 'prediction' ? 'opacity-70' : ''}`}
 >
   <div class="p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
   <!-- Left: Sleek Prompt Input & Presets -->
   <div class="flex-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
     <!-- Sequence Input with High-Contrast Monospace Tag -->
-    <div class="relative flex-1 flex items-center bg-slate-50 border border-slate-300 hover:border-slate-400 focus-within:border-ink focus-within:bg-white rounded transition px-2.5 py-1">
+    <div class="relative flex-1 flex items-center min-h-[44px] sm:min-h-0 bg-slate-50 border border-slate-300 hover:border-slate-400 focus-within:border-ink focus-within:bg-white rounded transition px-2.5 py-1.5">
       <span class="text-[10px] font-mono font-bold text-white bg-slate-900 px-1.5 py-0.5 rounded uppercase mr-2.5 shrink-0 select-none shadow-sm">
         PROMPT
       </span>
@@ -132,14 +141,14 @@
       <button
         type="button"
         on:click={() => selectPreset('Once upon a time')}
-        class="text-xs font-sans text-slate-700 hover:text-ink active:scale-95 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 transition font-semibold"
+        class="text-xs font-sans text-slate-700 hover:text-ink active:scale-95 px-3 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-300 transition font-semibold shadow-subtle flex items-center justify-center"
       >
         "Once upon..."
       </button>
       <button
         type="button"
         on:click={() => selectPreset('The little girl saw a bird')}
-        class="text-xs font-sans text-slate-700 hover:text-ink active:scale-95 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 transition font-semibold"
+        class="text-xs font-sans text-slate-700 hover:text-ink active:scale-95 px-3 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-300 transition font-semibold shadow-subtle flex items-center justify-center"
       >
         "The little girl..."
       </button>
@@ -153,7 +162,7 @@
       on:click={handleStep}
       disabled={$stateStore?.status === 'running'}
       title="Advance the model one stage so you can watch each part of its work"
-      class="px-3.5 py-1.5 bg-white hover:bg-slate-100 active:scale-95 disabled:opacity-40 text-slate-900 border border-slate-300 hover:border-ink rounded text-xs font-bold transition flex items-center gap-1.5 shadow-subtle"
+      class="px-3.5 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-white hover:bg-slate-100 active:bg-slate-200 active:scale-95 disabled:opacity-40 text-slate-900 border border-slate-300 hover:border-ink rounded text-xs font-bold transition flex items-center gap-1.5 shadow-subtle"
     >
       <svg class="w-3.5 h-3.5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
@@ -166,7 +175,7 @@
       <button
         on:click={handlePause}
         title="Freeze the run so you can look around"
-        class="px-3.5 py-1.5 bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-950 border border-amber-400 rounded text-xs font-bold transition flex items-center gap-1.5 shadow-subtle"
+        class="px-3.5 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 active:scale-95 text-amber-950 border border-amber-400 rounded text-xs font-bold transition flex items-center gap-1.5 shadow-subtle"
       >
         <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
           <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
@@ -177,7 +186,9 @@
       <button
         on:click={handlePlay}
         title="Run the model forward automatically at the chosen speed"
-        class="px-3.5 py-1.5 bg-ink hover:bg-black active:scale-95 disabled:opacity-40 text-white rounded text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+        class={`px-3.5 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-ink hover:bg-black active:bg-neutral-800 active:scale-95 disabled:opacity-40 text-white rounded text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+          highlighted ? 'ring-4 ring-amber-400 animate-pulse' : ''
+        }`}
       >
         <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24">
           <path d="M8 5v14l11-7z" />
@@ -189,7 +200,7 @@
     <!-- Play speed -->
     <button
       on:click={cycleSpeed}
-      class="w-10 py-1.5 bg-white hover:bg-slate-100 active:scale-95 text-slate-700 hover:text-ink border border-slate-300 hover:border-slate-400 rounded text-xs font-bold transition font-mono shadow-subtle"
+      class="w-11 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-white hover:bg-slate-100 active:bg-slate-200 active:scale-95 text-slate-700 hover:text-ink border border-slate-300 hover:border-slate-400 rounded text-xs font-bold transition font-mono shadow-subtle flex items-center justify-center"
       title="Play speed (click to cycle)"
     >
       {SPEEDS[speedIdx].label}
@@ -198,7 +209,7 @@
     <!-- Reset -->
     <button
       on:click={handleReset}
-      class="px-2.5 py-1.5 bg-white hover:bg-slate-100 active:scale-95 text-slate-700 hover:text-ink border border-slate-300 hover:border-slate-400 rounded text-xs font-bold transition shadow-subtle"
+      class="px-3 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-white hover:bg-slate-100 active:bg-slate-200 active:scale-95 text-slate-700 hover:text-ink border border-slate-300 hover:border-slate-400 rounded text-xs font-bold transition shadow-subtle flex items-center justify-center"
       title="Reset back to the start"
     >
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,16 +223,50 @@
     <p class="font-sans font-medium text-slate-900 mb-1">
       Type a story start, then tap <strong>Step</strong> or <strong>Play</strong>.
     </p>
-    <details>
-      <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+    <details class="text-xs">
+      <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+        <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+        <span>What's this?</span>
+      </summary>
+      <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
         The controls. Type the start of a story in the box, or tap a preset. <strong>Step</strong> moves the model one stage at a time. <strong>Play</strong> runs it through, and the × button sets the speed. Each chip in the tape is one piece of the story. Slate chips are your words. Amber chips are what the model wrote. The dark chip is the word being worked on right now.
       </p>
     </details>
   </div>
 
-  <!-- Autoregressive Token Stream: BOS → prompt prefill → generated (full-width row, auto-scrolls to newest) -->
+  <!-- Autoregressive Token Stream with Attention Rays -->
   <div class="border-t border-hairline bg-canvas-elevated/60">
+    {#if attentionRays && currentPos > 0 && arcPaths.length > 0}
+      <div class="px-3 pt-1.5 flex items-center justify-between text-[10px] font-mono">
+        <span class="text-accent-bronze font-bold flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-clay animate-pulse"></span>
+          <span>Head L{attentionRays.layer}:H{attentionRays.head} Attention Rays</span>
+        </span>
+        <span class="text-ink-muted">curved arcs = words this head looks back to</span>
+      </div>
+      <div class="relative w-full overflow-hidden px-3 h-7 pointer-events-none">
+        <svg class="w-full h-full overflow-visible">
+          {#each arcPaths as arc (arc.d)}
+            <path
+              d={arc.d}
+              pathLength={100}
+              fill="none"
+              stroke="rgba(217, 119, 6, {Math.max(0.3, Math.min(1, arc.weight * 1.3))})"
+              stroke-width={Math.max(1, arc.weight * 3.5)}
+              stroke-dasharray={arc.isTop ? 'none' : '3,2'}
+              class={arc.isTop ? 'ray-draw' : 'ray-march'}
+            />
+            <circle
+              cx={arc.targetX}
+              cy={arc.targetY}
+              r={arc.isTop ? 2.5 : 1.5}
+              fill="#d97706"
+            />
+          {/each}
+        </svg>
+      </div>
+    {/if}
+
     <div
       bind:this={tokenStrip}
       class="flex items-center gap-1 overflow-x-auto px-3 py-1.5 scrollbar-none"
@@ -233,6 +278,7 @@
 
       <!-- BOS chip at position 0 -->
       <div
+        bind:this={chipEls[0]}
         class={`inline-flex items-center px-2 py-0.5 rounded text-xs transition-all shrink-0 ${
           currentPos === 0
             ? 'bg-ink text-white font-bold shadow-sm'
@@ -240,22 +286,30 @@
         }`}
         title="Position #0 · start-of-sequence token (ID 1), the model's fixed starting point"
       >
-        <span class="font-sans">⟨s⟩</span>
+        <span class="font-sans">⟨start⟩</span><span class="sr-only">⟨s⟩</span>
+        {#if attentionRays && currentPos > 0 && (attentionRays.weights[0] ?? 0) >= 0.08}
+          <span class="ml-1 text-[8px] font-mono font-bold text-accent-bronze">{(attentionRays.weights[0] * 100).toFixed(0)}%</span>
+        {/if}
       </div>
 
       <!-- Prompt tokens (teacher-forced prefill at positions 1..n) -->
       {#each tokenItems as item, idx}
         {@const pos = idx + 1}
         {@const isActive = pos === currentPos}
+        {@const attnW = attentionRays && currentPos > pos ? (attentionRays.weights[pos] ?? 0) : 0}
         <div
+          bind:this={chipEls[pos]}
           class={`inline-flex items-center px-2 py-0.5 rounded text-xs transition-all shrink-0 ${
             isActive
               ? 'bg-ink text-white font-bold shadow-sm'
               : 'bg-slate-100 border border-slate-300 text-slate-800 hover:border-slate-400 font-medium'
           }`}
-          title={`Position #${pos} · your prompt token (ID ${item.id})`}
+          title={`Position #${pos} · your prompt token (ID ${item.id})${attnW >= 0.08 ? ` · received ${(attnW * 100).toFixed(0)}% attention` : ''}`}
         >
           <span class="font-sans">{item.text === ' ' ? '␣' : item.text}</span>
+          {#if attnW >= 0.08}
+            <span class="ml-1 text-[8px] font-mono font-bold text-accent-bronze">{(attnW * 100).toFixed(0)}%</span>
+          {/if}
         </div>
       {/each}
 
@@ -263,15 +317,20 @@
       {#each generatedTokens as item, gIdx}
         {@const pos = tokenItems.length + 1 + gIdx}
         {@const isActive = pos === currentPos}
+        {@const attnW = attentionRays && currentPos > pos ? (attentionRays.weights[pos] ?? 0) : 0}
         <div
+          bind:this={chipEls[pos]}
           class={`inline-flex items-center px-2 py-0.5 rounded text-xs transition-all shrink-0 border animate-token-pop ${
             isActive
               ? 'bg-amber-600 text-white font-bold border-amber-700 shadow-sm'
               : 'bg-amber-50 border-amber-300 text-amber-950 font-semibold'
           }`}
-          title={`Position #${pos} · written by the model (ID ${item.id})`}
+          title={`Position #${pos} · written by the model (ID ${item.id})${attnW >= 0.08 ? ` · received ${(attnW * 100).toFixed(0)}% attention` : ''}`}
         >
           <span class="font-sans">{item.piece === ' ' ? '␣' : item.piece}</span>
+          {#if attnW >= 0.08}
+            <span class="ml-1 text-[8px] font-mono font-bold text-amber-900">{(attnW * 100).toFixed(0)}%</span>
+          {/if}
         </div>
       {/each}
     </div>

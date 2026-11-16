@@ -31,13 +31,15 @@
     ? 0
     : (2 + currentLayer) / 9;
   $: isRunning = state?.status === 'running';
+  $: attnOn = currentPhase === 'post-attention' && !isCompleted;
+  $: ffnOn = currentPhase === 'post-ffn' && !isCompleted;
 </script>
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col gap-2.5">
   <!-- Top Telemetry Row with High-Contrast Text -->
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider">Execution Pipeline</span>
+      <span class="text-ink font-serif font-bold text-[15px] tracking-tight">Execution Pipeline</span>
       <span class="text-slate-300 font-bold">•</span>
       <span class="text-ink-secondary font-sans font-medium text-xs">6 stops · look back, then refine, at each one</span>
     </div>
@@ -49,7 +51,7 @@
           <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
           <span>Layer {state.currentStep.layer}</span>
           <span class="text-amber-400">/</span>
-          <span class="uppercase tracking-wider">{state.currentStep.phase === 'post-attention' ? 'Attention · 6 heads' : 'FFN · memory lookup'}</span>
+          <span class="uppercase tracking-wider">{state.currentStep.phase === 'post-attention' ? 'Attention · 6 heads' : 'Memory · pattern recall'}</span>
         </span>
       {:else if isCompleted}
         <span class="text-amber-950 font-bold bg-amber-100/80 border border-amber-300 px-2.5 py-0.5 rounded text-[11px] flex items-center gap-1.5">
@@ -68,8 +70,11 @@
     The journey one word takes to guess the next.
   </p>
   <details class="text-xs">
-    <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">What's this?</summary>
-    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1">
+    <summary class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-sans font-semibold text-slate-700 hover:text-ink hover:bg-slate-100 active:bg-slate-200 px-2 py-1 rounded transition select-none">
+      <span class="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">?</span>
+      <span>What's this?</span>
+    </summary>
+    <p class="font-sans font-medium text-slate-900 leading-relaxed mt-1.5 pl-1">
       This strip maps the journey one word takes to guess the next word. The amber dot is that word travelling through the model. <strong>Embed</strong> gives it a starting meaning. Each layer <strong>L0 to L5</strong> looks back at earlier words (<strong>Attn</strong>), then refines what it knows (<strong>FFN</strong>). <strong>Rescale</strong> tidies the numbers, and <strong>Scores</strong> turns it into a guess. Press Step or Play and watch the dot travel.
     </p>
   </details>
@@ -148,9 +153,9 @@
           Attn
         </span>
 
-        <!-- FFN sub-phase pill -->
+        <!-- Memory sub-phase pill -->
         <span
-          title="FFN (feed-forward network): the model's memory lookup. It mixes in learned patterns"
+          title="Memory (FFN): the model's memory lookup. It mixes in learned story patterns"
           class={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all duration-150 ${
           ffnActive
             ? 'bg-amber-600 text-white shadow-sm'
@@ -158,7 +163,7 @@
             ? 'bg-slate-200 text-slate-900 font-bold'
             : 'bg-canvas-elevated text-ink-secondary'
         }`}>
-          FFN
+          Memory
         </span>
       </div>
     {/each}
@@ -186,5 +191,60 @@
       <span class={`text-[10px] font-bold uppercase tracking-wider ${isCompleted ? 'text-amber-100' : 'text-ink-tertiary'}`}>Scores</span>
       <span class="text-xs">32k words</span>
     </div>
+  </div>
+
+  <!-- Layer anatomy diagram: how each layer reads the stream and writes back into it -->
+  <div class="relative bg-canvas-elevated border border-hairline rounded px-3 py-2 flex items-center gap-3 overflow-x-auto scrollbar-none">
+    <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-ink-secondary shrink-0 w-[84px] leading-snug">
+      Inside every layer
+    </span>
+    <svg
+      viewBox="0 0 380 68"
+      class="flex-1 min-w-[320px] h-14"
+      role="img"
+      aria-label="Diagram: working memory flows through; attention reads it, adds its answer back; memory does the same"
+    >
+      <!-- the residual stream highway -->
+      <rect x="4" y="14" width="372" height="18" rx="9" fill="#cbd5e1" />
+      <rect x="4" y="14" width="372" height="18" rx="9" fill="none" stroke="#94a3b8" stroke-width="1" />
+      {#if attnOn || ffnOn}
+        <circle cy="23" r="3" fill="#d97706" class="stream-pulse" />
+      {/if}
+      <text x="18" y="26.5" font-size="9" font-family="monospace" font-weight="700" fill="#1e293b">WORKING MEMORY →</text>
+
+      <!-- attention read/write loop: reads down out of the stream, writes back in -->
+      <path
+        d="M110 32 L110 44 Q110 49 115 49 L151 49 Q156 49 156 44 L156 32"
+        fill="none"
+        stroke={attnOn ? '#d97706' : '#94a3b8'}
+        stroke-width={attnOn ? 2.6 : 1.6}
+      />
+      <!-- read arrow (down) -->
+      <polygon points="106,39 114,39 110,46" fill={attnOn ? '#d97706' : '#94a3b8'} />
+      <!-- write-back arrow (up, into the stream) -->
+      <polygon points="152,40 160,40 156,31" fill={attnOn ? '#d97706' : '#94a3b8'} />
+      <text x="133" y="62" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={attnOn ? '#92400e' : '#475569'}>
+        looks back, adds its answer
+      </text>
+      {#if attnOn}
+        <circle cx="133" cy="49" r="2.6" fill="#d97706" />
+      {/if}
+
+      <!-- memory read/write loop -->
+      <path
+        d="M246 32 L246 44 Q246 49 251 49 L287 49 Q292 49 292 44 L292 32"
+        fill="none"
+        stroke={ffnOn ? '#d97706' : '#94a3b8'}
+        stroke-width={ffnOn ? 2.6 : 1.6}
+      />
+      <polygon points="242,39 250,39 246,46" fill={ffnOn ? '#d97706' : '#94a3b8'} />
+      <polygon points="288,40 296,40 292,31" fill={ffnOn ? '#d97706' : '#94a3b8'} />
+      <text x="269" y="62" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={ffnOn ? '#92400e' : '#475569'}>
+        recalls patterns, adds them
+      </text>
+      {#if ffnOn}
+        <circle cx="269" cy="49" r="2.6" fill="#d97706" />
+      {/if}
+    </svg>
   </div>
 </div>
