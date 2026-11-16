@@ -8,6 +8,7 @@
 
   const dispatch = createEventDispatcher<{
     selectHead: { layer: number; head: number };
+    headFocus: { layer: number; head: number } | null;
   }>();
 
   export let stepState: StepState | null = null;
@@ -447,9 +448,9 @@
   <div class="mt-2.5 pt-2 border-t border-hairline text-[11px] font-mono min-w-0">
     <div class="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-w-0">
       <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-800">Best Guess So Far</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-800" title="Technical term: Logit Lens. Translates intermediate working memory into top vocabulary guesses at each layer.">Thought Evolution (Best Guess)</span>
         <span class="text-slate-300 font-bold">·</span>
-        <span class="text-slate-600 font-sans font-medium">the model's top pick after each step</span>
+        <span class="text-slate-600 font-sans font-medium">watch the model's guess mature across layers</span>
       </div>
 
       <div class="flex items-center gap-3 text-slate-800 font-bold">
@@ -466,16 +467,38 @@
 
     {#if lensHistory.length > 0}
       <!-- Depth progression: how the leading token candidate morphs L0 → L5 -->
-      <div class="mt-1.5 flex items-center gap-1 overflow-x-auto scrollbar-none pb-0.5">
+      <div class="mt-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
         {#each lensHistory as entry, i}
           {@const isLatest = i === lensHistory.length - 1}
-          <div class="flex items-center gap-1 shrink-0">
-            <div class="flex flex-col items-center px-1.5 py-0.5 rounded border transition-all duration-200 {isLatest ? 'border-ink bg-ink shadow-sm' : 'border-hairline bg-canvas-elevated'}">
-              <span class="text-[8px] font-bold uppercase tracking-wider {isLatest ? 'text-zinc-400' : 'text-ink-muted'}">{entry.label}</span>
-              <span class="text-[11px] font-bold font-sans whitespace-nowrap {isLatest ? 'text-white' : 'text-ink'}">{entry.top[0]?.tokenPiece ?? '·'}</span>
+          {@const top = entry.top[0]}
+          {@const pct = top?.prob !== undefined ? Math.round(top.prob * 100) : null}
+          {@const layerNum = parseInt(entry.label.replace(/^L(\d+).*/, '$1'), 10)}
+          {@const displayLabel = Number.isFinite(layerNum) ? `L${layerNum}` : entry.label}
+          {@const mappedHead = layerNum === 0 ? 1 : layerNum === 5 ? 3 : null}
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <div
+              role="button"
+              tabindex="0"
+              on:click={() => mappedHead !== null && dispatch('selectHead', { layer: layerNum, head: mappedHead })}
+              on:mouseenter={() => mappedHead !== null && dispatch('headFocus', { layer: layerNum, head: mappedHead })}
+              on:mouseleave={() => dispatch('headFocus', null)}
+              on:keydown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && mappedHead !== null) {
+                  dispatch('selectHead', { layer: layerNum, head: mappedHead });
+                }
+              }}
+              class="flex flex-col items-center px-2 py-1 rounded border transition-all duration-200 {isLatest ? 'border-amber-500 bg-amber-50/80 shadow-sm ring-1 ring-amber-400' : 'border-slate-200 bg-slate-50'} {mappedHead !== null ? 'cursor-pointer hover:border-amber-400 hover:shadow-xs active:scale-95' : ''}"
+              title={mappedHead !== null ? `Click to inspect L${layerNum}:H${mappedHead} attention rays · Top guess: "${top?.tokenPiece.trim() ?? ''}" (${pct ?? '?'}%)` : `${entry.label}: top guess "${top?.tokenPiece.trim() ?? ''}" (${pct ?? '?'}% confidence)`}
+            >
+              <span class="text-[8px] font-bold uppercase tracking-wider {isLatest ? 'text-amber-900 font-extrabold' : 'text-slate-500'}">{displayLabel}</span>
+              <span class="text-xs font-bold font-sans whitespace-nowrap text-ink">{top?.tokenPiece ? `"${top.tokenPiece.trim()}"` : '·'}</span>
+              {#if pct !== null}
+                <span class="text-[9px] font-mono font-semibold {isLatest ? 'text-amber-800 font-bold' : 'text-slate-500'}">{pct}%</span>
+              {/if}
             </div>
             {#if !isLatest}
-              <span class="text-slate-300 font-bold text-[10px]">→</span>
+              <span class="text-slate-400 font-bold text-xs select-none">→</span>
             {/if}
           </div>
         {/each}

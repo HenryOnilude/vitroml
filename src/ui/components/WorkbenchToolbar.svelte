@@ -9,6 +9,7 @@
   export let currentPos: number = 0;
   export let generatedTokens: { id: number; piece: string }[] = [];
   export let highlighted: boolean = false;
+  export let attentionRays: { layer: number; head: number; weights: number[] } | null = null;
 
   const dispatch = createEventDispatcher<{
     tokensChange: { prompt: string; tokens: number[] };
@@ -39,6 +40,44 @@
 
   let tokenItems: TokenDisplay[] = [];
   let tokenStrip: HTMLElement | null = null;
+  let chipEls: Record<number, HTMLElement> = {};
+
+  interface ArcPath {
+    d: string;
+    targetX: number;
+    targetY: number;
+    weight: number;
+    isTop: boolean;
+  }
+  let arcPaths: ArcPath[] = [];
+
+  $: if (attentionRays && tokenStrip && chipEls[currentPos]) {
+    const fromEl = chipEls[currentPos];
+    const fromX = fromEl.offsetLeft + fromEl.offsetWidth / 2;
+    const y = 26;
+    const weights = attentionRays.weights;
+    const maxW = Math.max(...weights);
+    const paths: ArcPath[] = [];
+
+    for (let t = 0; t < currentPos; t++) {
+      const toEl = chipEls[t];
+      const w = weights[t] ?? 0;
+      if (!toEl || w < 0.04) continue;
+      const toX = toEl.offsetLeft + toEl.offsetWidth / 2;
+      const dx = Math.abs(fromX - toX);
+      const h = Math.min(22, Math.max(8, dx * 0.2));
+      paths.push({
+        d: `M ${fromX} ${y} C ${fromX} ${y - h}, ${toX} ${y - h}, ${toX} ${y}`,
+        targetX: toX,
+        targetY: y,
+        weight: w,
+        isTop: w === maxW,
+      });
+    }
+    arcPaths = paths;
+  } else {
+    arcPaths = [];
+  }
 
   // Keep the newest token in view as the stream grows
   $: if (tokenStrip && (generatedTokens.length || tokenItems.length)) {
@@ -225,8 +264,37 @@
     </details>
   </div>
 
-  <!-- Autoregressive Token Stream: BOS → prompt prefill → generated (full-width row, auto-scrolls to newest) -->
+  <!-- Autoregressive Token Stream with Attention Rays -->
   <div class="border-t border-hairline bg-canvas-elevated/60">
+    {#if attentionRays && currentPos > 0 && arcPaths.length > 0}
+      <div class="px-3 pt-1.5 flex items-center justify-between text-[10px] font-mono">
+        <span class="text-accent-bronze font-bold flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-bronze animate-pulse"></span>
+          <span>Head L{attentionRays.layer}:H{attentionRays.head} Attention Rays</span>
+        </span>
+        <span class="text-ink-muted">curved arcs = words this head looks back to</span>
+      </div>
+      <div class="relative w-full overflow-hidden px-3 h-7 pointer-events-none">
+        <svg class="w-full h-full overflow-visible">
+          {#each arcPaths as arc}
+            <path
+              d={arc.d}
+              fill="none"
+              stroke="rgba(217, 119, 6, {Math.max(0.3, Math.min(1, arc.weight * 1.3))})"
+              stroke-width={Math.max(1, arc.weight * 3.5)}
+              stroke-dasharray={arc.isTop ? 'none' : '3,2'}
+            />
+            <circle
+              cx={arc.targetX}
+              cy={arc.targetY}
+              r={arc.isTop ? 2.5 : 1.5}
+              fill="#d97706"
+            />
+          {/each}
+        </svg>
+      </div>
+    {/if}
+
     <div
       bind:this={tokenStrip}
       class="flex items-center gap-1 overflow-x-auto px-3 py-1.5 scrollbar-none"
@@ -238,6 +306,7 @@
 
       <!-- BOS chip at position 0 -->
       <div
+        bind:this={chipEls[0]}
         class={`inline-flex items-center px-2 py-0.5 rounded text-xs transition-all shrink-0 ${
           currentPos === 0
             ? 'bg-ink text-white font-bold shadow-sm'
@@ -246,21 +315,29 @@
         title="Position #0 · start-of-sequence token (ID 1), the model's fixed starting point"
       >
         <span class="font-sans">⟨start⟩</span><span class="sr-only">⟨s⟩</span>
+        {#if attentionRays && currentPos > 0 && (attentionRays.weights[0] ?? 0) >= 0.08}
+          <span class="ml-1 text-[8px] font-mono font-bold text-accent-bronze">{(attentionRays.weights[0] * 100).toFixed(0)}%</span>
+        {/if}
       </div>
 
       <!-- Prompt tokens (teacher-forced prefill at positions 1..n) -->
       {#each tokenItems as item, idx}
         {@const pos = idx + 1}
         {@const isActive = pos === currentPos}
+        {@const attnW = attentionRays && currentPos > pos ? (attentionRays.weights[pos] ?? 0) : 0}
         <div
+          bind:this={chipEls[pos]}
           class={`inline-flex items-center px-2 py-0.5 rounded text-xs transition-all shrink-0 ${
             isActive
               ? 'bg-ink text-white font-bold shadow-sm'
               : 'bg-slate-100 border border-slate-300 text-slate-800 hover:border-slate-400 font-medium'
           }`}
-          title={`Position #${pos} · your prompt token (ID ${item.id})`}
+          title={`Position #${pos} · your prompt token (ID ${item.id})${attnW >= 0.08 ? ` · received ${(attnW * 100).toFixed(0)}% attention` : ''}`}
         >
           <span class="font-sans">{item.text === ' ' ? '␣' : item.text}</span>
+          {#if attnW >= 0.08}
+            <span class="ml-1 text-[8px] font-mono font-bold text-accent-bronze">{(attnW * 100).toFixed(0)}%</span>
+          {/if}
         </div>
       {/each}
 
@@ -268,15 +345,20 @@
       {#each generatedTokens as item, gIdx}
         {@const pos = tokenItems.length + 1 + gIdx}
         {@const isActive = pos === currentPos}
+        {@const attnW = attentionRays && currentPos > pos ? (attentionRays.weights[pos] ?? 0) : 0}
         <div
+          bind:this={chipEls[pos]}
           class={`inline-flex items-center px-2 py-0.5 rounded text-xs transition-all shrink-0 border animate-token-pop ${
             isActive
               ? 'bg-amber-600 text-white font-bold border-amber-700 shadow-sm'
               : 'bg-amber-50 border-amber-300 text-amber-950 font-semibold'
           }`}
-          title={`Position #${pos} · written by the model (ID ${item.id})`}
+          title={`Position #${pos} · written by the model (ID ${item.id})${attnW >= 0.08 ? ` · received ${(attnW * 100).toFixed(0)}% attention` : ''}`}
         >
           <span class="font-sans">{item.piece === ' ' ? '␣' : item.piece}</span>
+          {#if attnW >= 0.08}
+            <span class="ml-1 text-[8px] font-mono font-bold text-amber-900">{(attnW * 100).toFixed(0)}%</span>
+          {/if}
         </div>
       {/each}
     </div>

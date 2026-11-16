@@ -39,6 +39,35 @@
   // Cross-view brushing state: hovered head index (0..5)
   let brushedHead: number | null = null;
 
+  // Active attention scores preserved across steps for Attention Rays
+  let lastAttnScores: import('./engine/tensor').Tensor | null = null;
+  let lastAttnLayer: number = 0;
+  $: if ($stateStore?.currentStep?.phase === 'post-attention' && $stateStore.currentStep.attentionScores) {
+    lastAttnScores = $stateStore.currentStep.attentionScores;
+    lastAttnLayer = $stateStore.currentStep.layer;
+  }
+
+  $: activeHeadRays = (() => {
+    if (!lastAttnScores || currentPos <= 0) return null;
+    const h = brushedHead ?? activeLensHead ?? activeSeveredHead ?? 0;
+    const seqLen = lastAttnScores.shape[1];
+    const weights: number[] = [];
+    const off = lastAttnScores.offset + h * seqLen;
+    for (let t = 0; t <= currentPos; t++) {
+      weights.push(lastAttnScores.data[off + t]);
+    }
+    return { layer: lastAttnLayer, head: h, weights };
+  })();
+
+  function handleLensHeadFocus(event: CustomEvent<{ layer: number; head: number } | null>) {
+    if (!event.detail) {
+      activeLensHead = null;
+      return;
+    }
+    activeLensHead = event.detail.head;
+    brushedHead = event.detail.head;
+  }
+
   // Mobile act switcher: on <lg only one column is visible at a time
   let mobileAct: 1 | 2 = 1;
 
@@ -82,6 +111,7 @@
   let interventionRef: InterventionPanel | null = null;
 
   let activeSeveredHead: number | null = null;
+  let activeLensHead: number | null = null;
 
   function handleWhySelectHead(event: CustomEvent<{ layer: number; head: number }>) {
     const { layer, head } = event.detail;
@@ -373,6 +403,7 @@
           {currentPos}
           {generatedTokens}
           highlighted={highlightedTarget === 'controls'}
+          attentionRays={activeHeadRays}
           on:tokensChange={handleTokensChange}
           on:advance={handleAdvance}
           on:userPlay={() => (autoGen = true)}
@@ -431,6 +462,7 @@
               {tokenizer}
               {currentToken}
               on:selectHead={handleWhySelectHead}
+              on:headFocus={handleLensHeadFocus}
             />
 
             <div class="flex-1 min-w-0">
