@@ -53,7 +53,7 @@
 >
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-2 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider" title="Circuit Map: all 36 attention heads arranged by layer and head index.">Brain Parts</span>
+      <span class="text-ink font-serif font-bold text-[15px] tracking-tight" title="Circuit Map: all 36 attention heads arranged by layer and head index.">Brain Parts</span>
       <span class="text-hairline-bright">•</span>
       <span class="text-ink-secondary font-sans text-xs"><span class="font-semibold">Circuit Map</span> (36 Heads)</span>
     </div>

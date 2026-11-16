@@ -16,6 +16,12 @@
     letter-spacing: -0.015em;
   }
 
+  /* Fraunces: optical sizing sharpens display sizes automatically */
+  .font-serif {
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+  }
+
   /* Tabular figures + slashed zero keep numeric readouts stable during streaming */
   .font-mono {
     font-feature-settings: 'tnum' 1, 'zero' 1, 'cv09' 1;

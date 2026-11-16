@@ -358,7 +358,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 min-h-[3rem] py-1.5 flex flex-wrap items-center justify-between gap-2 min-w-0">
       <!-- Left: Brand / Wordmark -->
       <div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 min-w-0">
-        <span class="font-extrabold text-sm tracking-tight text-ink font-mono uppercase">
+        <span class="font-serif font-black text-lg tracking-tight text-ink">
           Vitro
         </span>
         <span class="text-hairline-bright font-mono text-xs">/</span>

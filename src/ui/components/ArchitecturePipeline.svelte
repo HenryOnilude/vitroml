@@ -39,7 +39,7 @@
   <!-- Top Telemetry Row with High-Contrast Text -->
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider">Execution Pipeline</span>
+      <span class="text-ink font-serif font-bold text-[15px] tracking-tight">Execution Pipeline</span>
       <span class="text-slate-300 font-bold">•</span>
       <span class="text-ink-secondary font-sans font-medium text-xs">6 stops · look back, then refine, at each one</span>
     </div>

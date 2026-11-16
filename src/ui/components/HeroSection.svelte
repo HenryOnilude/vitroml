@@ -28,7 +28,7 @@
       <div class="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-accent-bronze mb-1">
         Interactive explorable · client-side
       </div>
-      <h1 class="text-lg sm:text-2xl font-bold tracking-tight text-ink font-serif">
+      <h1 class="text-2xl sm:text-[2.1rem] sm:leading-[1.15] font-black tracking-tight text-ink font-serif">
         Watch a tiny language model think
       </h1>
       <p class="text-xs text-slate-800 font-medium leading-relaxed mt-1.5 font-sans">

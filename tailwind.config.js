@@ -18,9 +18,8 @@ export default {
           'Menlo',
           'monospace',
         ],
-        // Transitional serif for claims/headlines — the "document of record" voice
-        // (Georgia is the closest system serif to Baskerville's authority profile)
-        serif: ['Georgia', 'Charter', '"Times New Roman"', 'serif'],
+        // Editorial old-style serif for display voice — Fraunces with optical sizing
+        serif: ['"Fraunces"', 'Georgia', 'Charter', '"Times New Roman"', 'serif'],
       },
       colors: {
         canvas: {

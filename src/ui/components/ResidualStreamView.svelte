@@ -234,7 +234,7 @@
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-2 min-w-0">
       <span
-        class="text-ink font-bold text-xs uppercase tracking-wider"
+        class="text-ink font-serif font-bold text-[15px] tracking-tight"
         title="Technical term: Working Vector / Residual Stream. The 288 numbers each layer reads from and writes back into."
       >Working Memory</span>
       <span class="text-slate-300 font-bold">/</span>

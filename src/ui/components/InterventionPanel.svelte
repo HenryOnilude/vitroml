@@ -119,7 +119,7 @@
     <!-- Header with High-Contrast Typography -->
     <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
       <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-        <span class="text-ink font-bold text-xs uppercase tracking-wider" title="Causal intervention: see what changes when a specific attention head is turned off.">Turn Off a Head</span>
+        <span class="text-ink font-serif font-bold text-[15px] tracking-tight" title="Causal intervention: see what changes when a specific attention head is turned off.">Turn Off a Head</span>
         <span class="text-hairline-bright font-bold">/</span>
         <span class="text-ink-secondary font-sans font-bold">
           Head L{selectedLayer}:H{selectedHead} Switched Off

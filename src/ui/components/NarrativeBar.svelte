@@ -126,7 +126,7 @@
               {narrative.phaseTag}
             </span>
             <span class="text-slate-300 font-bold">•</span>
-            <span class="text-sm font-bold text-ink tracking-tight font-serif">
+            <span class="text-[15px] font-bold text-ink tracking-tight font-serif">
               {narrative.headline}
             </span>
           </div>
