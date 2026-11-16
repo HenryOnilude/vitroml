@@ -10,6 +10,7 @@
   export let generatedTokens: { id: number; piece: string }[] = [];
   export let highlighted: boolean = false;
   export let attentionRays: { layer: number; head: number; weights: number[] } | null = null;
+  export let focusMode: 'attention' | 'memory' | 'prediction' | null = null;
 
   const dispatch = createEventDispatcher<{
     tokensChange: { prompt: string; tokens: number[] };
@@ -147,7 +148,7 @@
   id="panel-controls"
   class={`bg-white border rounded shadow-subtle transition-all duration-300 ${
     highlighted ? 'border-amber-500 ring-2 ring-amber-400/70' : 'border-hairline'
-  }`}
+  } ${focusMode === 'attention' ? 'ring-2 ring-amber-400/50' : ''} ${focusMode === 'memory' || focusMode === 'prediction' ? 'opacity-70' : ''}`}
 >
   <div class="p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
   <!-- Left: Sleek Prompt Input & Presets -->

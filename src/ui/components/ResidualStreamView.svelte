@@ -18,6 +18,7 @@
   export let weights: ModelWeights | null = null;
   export let tokenizer: Tokenizer | null = null;
   export let currentToken: number = 1;
+  export let focusMode: 'attention' | 'memory' | 'prediction' | null = null;
 
   interface BarData {
     index: number;
@@ -228,7 +229,7 @@
   })();
 </script>
 
-<div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col justify-between">
+<div class={`bg-white border rounded p-3 shadow-subtle flex flex-col justify-between transition-all duration-300 ${focusMode === 'attention' ? 'border-hairline opacity-60 grayscale-[0.3]' : 'border-hairline'} ${focusMode === 'prediction' ? 'ring-2 ring-amber-400/60' : ''}`}>
   <!-- Header & Metric Badges with High-Contrast Typography -->
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-2 min-w-0">

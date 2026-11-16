@@ -68,6 +68,15 @@
     brushedHead = event.detail.head;
   }
 
+  // Phase Focus: guide user attention to the active computation stage
+  $: focusMode = (() => {
+    const phase = $stateStore?.currentStep?.phase;
+    if (phase === 'post-attention') return 'attention' as const;
+    if (phase === 'post-ffn') return 'memory' as const;
+    if ($stateStore?.status === 'completed') return 'prediction' as const;
+    return null;
+  })();
+
   // Mobile act switcher: on <lg only one column is visible at a time
   let mobileAct: 1 | 2 = 1;
 
@@ -404,6 +413,7 @@
           {generatedTokens}
           highlighted={highlightedTarget === 'controls'}
           attentionRays={activeHeadRays}
+          {focusMode}
           on:tokensChange={handleTokensChange}
           on:advance={handleAdvance}
           on:userPlay={() => (autoGen = true)}
@@ -457,6 +467,7 @@
               stepState={$stateStore?.currentStep ?? null}
               highlightedHead={brushedHead}
               severedHead={act2Open ? activeSeveredHead : null}
+              {focusMode}
               {config}
               {weights}
               {tokenizer}
@@ -471,6 +482,7 @@
                 {positionLabels}
                 highlightedHead={brushedHead}
                 severedHead={act2Open ? activeSeveredHead : null}
+                {focusMode}
               />
             </div>
           </div>
