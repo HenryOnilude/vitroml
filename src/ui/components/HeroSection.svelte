@@ -36,8 +36,8 @@
         Step through it layer by layer, watch it write a story word by word,
         and switch off attention heads to see how the answer changes.
       </p>
-      <div class="mt-2 p-2 bg-amber-50/70 border border-amber-200 rounded text-xs font-sans text-amber-950">
-        <strong class="font-semibold text-ink">What is this?</strong> An interactive microscope for a language model — an exploratory instrument, not a data-cleaning or training tool.
+      <div class="mt-2 p-2 bg-amber-50/70 border border-amber-200 rounded text-xs font-sans text-amber-950 leading-relaxed">
+        <strong class="font-semibold text-ink">What is this?</strong> A tiny AI storyteller that runs entirely in your browser. Press Play and watch it write one word at a time, look inside to see how it picks each word, then switch parts of its brain off and watch the answer change. It is for exploring how AI thinks, not for cleaning data or training models.
       </div>
       <div class="flex flex-wrap items-center gap-2 mt-2.5 text-[10px] font-mono text-ink-muted font-bold">
         <span>15.2M params</span>
