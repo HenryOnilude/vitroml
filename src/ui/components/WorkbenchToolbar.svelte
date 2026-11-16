@@ -177,7 +177,9 @@
       <button
         on:click={handlePlay}
         title="Run the model forward automatically at the chosen speed"
-        class="px-3.5 py-1.5 bg-ink hover:bg-black active:scale-95 disabled:opacity-40 text-white rounded text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+        class={`px-3.5 py-1.5 bg-ink hover:bg-black active:scale-95 disabled:opacity-40 text-white rounded text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+          highlighted ? 'ring-4 ring-amber-400 animate-pulse' : ''
+        }`}
       >
         <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24">
           <path d="M8 5v14l11-7z" />

@@ -49,7 +49,12 @@
   let showTryAnother = false;
   $: if ($stateStore?.status === 'completed' && !seenFirstComplete) {
     seenFirstComplete = true;
-    if (!act2Open) act2Hint = true;
+    if (!act2Open) {
+      act2Hint = true;
+      tick().then(() => {
+        document.getElementById('panel-act2-teaser')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
   }
   function openAct2() {
     act2Open = true;
@@ -450,9 +455,9 @@
                 <span class="block text-sm font-bold text-ink font-serif mt-1">Now try breaking it</span>
                 <span class="block text-[11px] text-ink-secondary font-sans mt-0.5">
                   {#if act2Hint}
-                    Now switch a head off and see what changes.
+                    Now switch a head off and see what changes. (Click to open)
                   {:else}
-                    Switch one attention head off and see what changes.
+                    Switch one attention head off and see what changes. (Click to open)
                   {/if}
                 </span>
               </button>

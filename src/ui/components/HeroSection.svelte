@@ -64,7 +64,8 @@
         class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">1.</span>
-        <span class="text-slate-900 group-hover:text-ink">Press Play and watch one word travel through the model.</span>
+        <span class="text-slate-900 group-hover:text-ink flex-1">Press Play and watch one word travel through the model.</span>
+        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0">→</span>
       </button>
       <button
         type="button"
@@ -72,7 +73,8 @@
         class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">2.</span>
-        <span class="text-slate-900 group-hover:text-ink">{step2Label}</span>
+        <span class="text-slate-900 group-hover:text-ink flex-1">{step2Label}</span>
+        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0">→</span>
       </button>
       <button
         type="button"
@@ -80,7 +82,8 @@
         class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">3.</span>
-        <span class="text-slate-900 group-hover:text-ink">Read what changes in the experiment result.</span>
+        <span class="text-slate-900 group-hover:text-ink flex-1">Read what changes in the experiment result.</span>
+        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0">→</span>
       </button>
     </div>
   </div>
