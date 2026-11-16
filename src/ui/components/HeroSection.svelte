@@ -5,6 +5,7 @@
 
   const dispatch = createEventDispatcher<{
     guideStep: 1 | 2 | 3;
+    tour: void;
   }>();
 
   const LAYERS = [0, 1, 2, 3, 4, 5];
@@ -55,8 +56,16 @@
 
     <!-- Right: numbered "Try it in 3 steps" interactive strip -->
     <div class="shrink-0 flex flex-col gap-1.5 text-[11px] font-sans font-medium text-ink-secondary min-w-0">
-      <div class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">
-        Try it in 3 steps
+      <div class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted flex items-center justify-between gap-2">
+        <span>Try it in 3 steps</span>
+        <button
+          type="button"
+          on:click={() => dispatch('tour')}
+          class="text-[9px] font-mono font-bold uppercase tracking-wider text-accent-bronze hover:text-amber-800 underline underline-offset-2 decoration-amber-300 hover:decoration-amber-600 transition normal-case tracking-normal"
+          title="One concept at a time, with simple diagrams"
+        >
+          or take the 5-slide tour →
+        </button>
       </div>
       <button
         type="button"

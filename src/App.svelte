@@ -14,6 +14,7 @@
   import ResidualStreamView from './ui/components/ResidualStreamView.svelte';
   import InterventionPanel from './ui/components/InterventionPanel.svelte';
   import AttentionMap from './ui/components/AttentionMap.svelte';
+  import GuidedTour from './ui/components/GuidedTour.svelte';
 
   let isLoading: boolean = true;
   let loadingProgress: string = 'Initializing engine...';
@@ -129,6 +130,8 @@
     openAct2();
     interventionRef?.selectHead(layer, head);
   }
+
+  let tourOpen = false;
 
   async function handleGuideStep(event: CustomEvent<1 | 2 | 3>) {
     const step = event.detail;
@@ -402,7 +405,7 @@
       <!-- Unified Architectural Layout (Zero Fluff) -->
       <div class="space-y-3">
         <!-- 0. Hero: what this is and what you can do with it -->
-        <HeroSection {step2Label} on:guideStep={handleGuideStep} />
+        <HeroSection {step2Label} on:guideStep={handleGuideStep} on:tour={() => (tourOpen = true)} />
 
         <!-- 1. Interactive Control Strip -->
         <WorkbenchToolbar
@@ -546,6 +549,9 @@
       </div>
     {/if}
   </main>
+
+  <!-- 5-slide guided tour: one concept at a time, with simple diagrams -->
+  <GuidedTour open={tourOpen} on:close={() => (tourOpen = false)} on:done={() => (tourOpen = false)} />
 
   <!-- High-Contrast Technical Telemetry Footer -->
   <footer class="border-t border-hairline py-3 px-4 sm:px-6 bg-white text-xs font-mono">
