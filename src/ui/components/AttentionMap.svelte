@@ -71,7 +71,7 @@
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle h-full flex flex-col">
   <div class="flex flex-wrap items-center justify-between gap-y-1 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider">Attention Field</span>
+      <span class="text-ink font-bold text-xs uppercase tracking-wider" title="Technical term: Attention Field. Shows where each of the 6 attention heads looks back across earlier words.">Where It Looks Back (Attention Field)</span>
       <span class="text-slate-300 font-bold">/</span>
       <span class="text-ink-secondary font-sans font-semibold text-xs">
         {#if lastAttn}

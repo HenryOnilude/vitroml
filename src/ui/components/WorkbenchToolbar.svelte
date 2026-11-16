@@ -240,7 +240,7 @@
         }`}
         title="Position #0 · start-of-sequence token (ID 1), the model's fixed starting point"
       >
-        <span class="font-sans">⟨s⟩</span>
+        <span class="font-sans">⟨start⟩</span><span class="sr-only">⟨s⟩</span>
       </div>
 
       <!-- Prompt tokens (teacher-forced prefill at positions 1..n) -->

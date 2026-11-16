@@ -49,7 +49,7 @@
           <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
           <span>Layer {state.currentStep.layer}</span>
           <span class="text-amber-400">/</span>
-          <span class="uppercase tracking-wider">{state.currentStep.phase === 'post-attention' ? 'Attention · 6 heads' : 'FFN · memory lookup'}</span>
+          <span class="uppercase tracking-wider">{state.currentStep.phase === 'post-attention' ? 'Attention · 6 heads' : 'Memory · pattern recall'}</span>
         </span>
       {:else if isCompleted}
         <span class="text-amber-950 font-bold bg-amber-100/80 border border-amber-300 px-2.5 py-0.5 rounded text-[11px] flex items-center gap-1.5">
@@ -148,9 +148,9 @@
           Attn
         </span>
 
-        <!-- FFN sub-phase pill -->
+        <!-- Memory sub-phase pill -->
         <span
-          title="FFN (feed-forward network): the model's memory lookup. It mixes in learned patterns"
+          title="Memory (FFN): the model's memory lookup. It mixes in learned story patterns"
           class={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all duration-150 ${
           ffnActive
             ? 'bg-amber-600 text-white shadow-sm'
@@ -158,7 +158,7 @@
             ? 'bg-slate-200 text-slate-900 font-bold'
             : 'bg-canvas-elevated text-ink-secondary'
         }`}>
-          FFN
+          Memory
         </span>
       </div>
     {/each}

@@ -69,19 +69,19 @@
       // post-ffn
       if (layer === 0) {
         return {
-          phaseTag: `LAYER ${layer} · FFN`,
+          phaseTag: `LAYER ${layer} · MEMORY (FFN)`,
           headline: 'First Memory Lookup',
           explanation: `The vector expands 288 → 768 through a gated filter (SwiGLU). This is where the model starts mixing in patterns it learned during training.`,
         };
       } else if (layer < 4) {
         return {
-          phaseTag: `LAYER ${layer} · FFN`,
+          phaseTag: `LAYER ${layer} · MEMORY (FFN)`,
           headline: 'Memory Lookup',
           explanation: `These neurons work like an associative memory. They inject story patterns learned from TinyStories into the stream.`,
         };
       } else {
         return {
-          phaseTag: `LAYER ${layer} · FFN`,
+          phaseTag: `LAYER ${layer} · MEMORY (FFN)`,
           headline: 'Last Refinement Pass',
           explanation: `The final processing step. The stream now carries the model's settled guess about which word comes next.`,
         };

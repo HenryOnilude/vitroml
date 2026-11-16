@@ -119,7 +119,7 @@
     <!-- Header with High-Contrast Typography -->
     <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
       <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-        <span class="text-ink font-bold text-xs uppercase tracking-wider">Causal Intervention</span>
+        <span class="text-ink font-bold text-xs uppercase tracking-wider" title="Causal intervention: see what changes when a specific attention head is turned off.">Turn Off a Head</span>
         <span class="text-hairline-bright font-bold">/</span>
         <span class="text-ink-secondary font-sans font-bold">
           Head L{selectedLayer}:H{selectedHead} Switched Off
@@ -204,9 +204,9 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono mt-1.5">
             <div
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
-              title="Total change across all 32,000 output scores when this head is switched off"
+              title="Total change across all 32,000 output scores when this head is switched off (L2 difference)"
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Total Shift Δ</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Total Shift</div>
               <div class="text-base font-bold text-ink mt-0.5">
                 {comparisonResult.l2Diff.toFixed(2)}
               </div>
@@ -216,7 +216,7 @@
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
               title="Largest change to any single token's score"
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Biggest Hit</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Largest Shift</div>
               <div class="text-base font-bold text-accent-rust mt-0.5">
                 {comparisonResult.maxAbsDiff.toFixed(2)}
               </div>
@@ -224,9 +224,9 @@
 
             <div
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
-              title="Each head owns 48 of the 288 vector channels. Switching it off zeroes these numbers"
+              title="Each head controls 48 of the 288 working memory numbers. Switching it off sets these to 0"
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Channels Cut</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Signals Cut</div>
               <div class="text-xs font-bold text-ink-secondary mt-1">
                 {comparisonResult.targetHead * 48}..{(comparisonResult.targetHead + 1) * 48 - 1}
               </div>
@@ -236,7 +236,7 @@
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
               title={`Tested on position ${comparisonResult.testedPos} ("${comparisonResult.testedPiece.trim() || '<s>'}") across the full sequence of words seen so far.`}
             >
-              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Tested On</div>
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Tested Word</div>
               <div class="text-xs font-bold text-ink-secondary mt-1 truncate">
                 pos {comparisonResult.testedPos} ({comparisonResult.testedPiece.trim() || '<s>'})
               </div>

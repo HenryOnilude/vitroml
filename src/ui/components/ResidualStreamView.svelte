@@ -232,19 +232,19 @@
     <div class="flex flex-wrap items-center gap-2 min-w-0">
       <span
         class="text-ink font-bold text-xs uppercase tracking-wider"
-        title="The vector each token carries through the model. Every layer reads it and writes back into it. Also called the residual stream."
-      >Working Vector</span>
+        title="Technical term: Working Vector / Residual Stream. The 288 numbers each layer reads from and writes back into."
+      >Working Memory (Vector)</span>
       <span class="text-slate-300 font-bold">/</span>
       {#if viewMode === 'delta' && stepState}
         <span class="text-ink-secondary font-sans font-semibold text-xs">
-          Δx written by L{stepState.layer} {stepState.phase === 'post-attention' ? 'Attention' : 'FFN'}
+          Changes written by L{stepState.layer} {stepState.phase === 'post-attention' ? 'Attention' : 'Memory'}
         </span>
       {:else}
-        <span class="text-ink-secondary font-sans font-semibold text-xs">288 Dimensions</span>
+        <span class="text-ink-secondary font-sans font-semibold text-xs">288 Numbers</span>
       {/if}
       {#if stepState}
         <span class="text-amber-950 font-bold bg-amber-100/80 border border-amber-300 px-2.5 py-0.5 rounded text-[10px]">
-          L{stepState.layer} · {stepState.phase === 'post-attention' ? 'Attn' : 'FFN'}
+          L{stepState.layer} · {stepState.phase === 'post-attention' ? 'Attention' : 'Memory'}
         </span>
       {/if}
     </div>
@@ -492,8 +492,8 @@
           {/if}
           <span
             class="text-ink-muted cursor-help border-b border-dotted border-ink-muted"
-            title="Approximate attribution: linearized through the final norm with its scale frozen. It suggests where the change came from — switching the head off tests it."
-          >approx.</span>
+            title="Estimated attribution: linearized through the final norm with its scale frozen. It suggests where the change came from; switching the head off tests it."
+          >Estimated push</span>
         </p>
       {/if}
     {:else}

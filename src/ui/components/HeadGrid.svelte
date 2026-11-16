@@ -53,7 +53,7 @@
 >
   <div class="flex flex-wrap items-center justify-between gap-y-1.5 gap-x-2 pb-2 mb-2 border-b border-hairline text-xs font-mono min-w-0">
     <div class="flex flex-wrap items-center gap-2 min-w-0">
-      <span class="text-ink font-bold text-xs uppercase tracking-wider">Circuit Map</span>
+      <span class="text-ink font-bold text-xs uppercase tracking-wider" title="Circuit Map: all 36 attention heads arranged by layer and head index.">Brain Parts (Circuit Map)</span>
       <span class="text-hairline-bright">•</span>
       <span class="text-ink-secondary font-sans text-xs">36 Attention Heads</span>
     </div>
@@ -70,7 +70,7 @@
       </span>
       <span class="flex items-center gap-1.5">
         <span class="w-2.5 h-2.5 rounded border border-hairline-bright" style="background: rgba(17,18,21,0.35)"></span>
-        <span class="text-ink-secondary">Impact if off</span>
+        <span class="text-ink-secondary">Impact if turned off</span>
       </span>
     </div>
   </div>

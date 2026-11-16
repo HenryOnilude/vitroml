@@ -310,8 +310,8 @@
           Vitro
         </span>
         <span class="text-hairline-bright font-mono text-xs">/</span>
-        <span class="text-xs text-ink-secondary font-semibold truncate">
-          stories15M · Mechanistic Interpretability Workbench
+        <span class="text-xs text-ink-secondary font-semibold truncate" title="Mechanistic interpretability workbench for stories15M">
+          stories15M · Inside an AI Storyteller
         </span>
       </div>
 
