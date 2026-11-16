@@ -277,13 +277,15 @@
       </div>
       <div class="relative w-full overflow-hidden px-3 h-7 pointer-events-none">
         <svg class="w-full h-full overflow-visible">
-          {#each arcPaths as arc}
+          {#each arcPaths as arc (arc.d)}
             <path
               d={arc.d}
+              pathLength={100}
               fill="none"
               stroke="rgba(217, 119, 6, {Math.max(0.3, Math.min(1, arc.weight * 1.3))})"
               stroke-width={Math.max(1, arc.weight * 3.5)}
               stroke-dasharray={arc.isTop ? 'none' : '3,2'}
+              class={arc.isTop ? 'ray-draw' : 'ray-march'}
             />
             <circle
               cx={arc.targetX}

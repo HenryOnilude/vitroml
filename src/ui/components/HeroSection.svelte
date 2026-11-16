@@ -116,6 +116,7 @@
       <text x="20" y="82" font-size="8" font-family="monospace" fill="#64748b">your story start</text>
       <path d="M192 53 L222 53" stroke="#d97706" stroke-width="2.4" />
       <polygon points="222,49 222,57 230,53" fill="#d97706" />
+      <circle cx="192" cy="53" r="2.5" fill="#d97706" class="hero-flow" />
 
       <!-- scene 2: the model box -->
       <rect x="236" y="26" width="380" height="132" rx="8" fill="#f8fafc" stroke="#cbd5e1" />
@@ -126,9 +127,9 @@
       <circle cx="390" cy="58" r="3.5" fill="#475569" />
       <circle cx="450" cy="58" r="3.5" fill="#475569" />
       <circle cx="510" cy="58" r="3.5" fill="#d97706" />
-      <path d="M510 56 Q480 44 450 56" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.9" />
-      <path d="M510 56 Q450 38 390 56" fill="none" stroke="#d97706" stroke-width="1.2" opacity="0.6" />
-      <path d="M510 56 Q420 32 330 56" fill="none" stroke="#d97706" stroke-width="0.9" opacity="0.4" />
+      <path d="M510 56 Q480 44 450 56" pathLength="100" class="hero-arc" fill="none" stroke="#d97706" stroke-width="1.6" opacity="0.9" />
+      <path d="M510 56 Q450 38 390 56" pathLength="100" class="hero-arc" style="animation-delay: 160ms" fill="none" stroke="#d97706" stroke-width="1.2" opacity="0.6" />
+      <path d="M510 56 Q420 32 330 56" pathLength="100" class="hero-arc" style="animation-delay: 320ms" fill="none" stroke="#d97706" stroke-width="0.9" opacity="0.4" />
       <text x="600" y="70" text-anchor="end" font-size="7.5" font-family="monospace" fill="#92400e">heads look back ↶</text>
 
       <!-- six layer bands -->
@@ -141,6 +142,7 @@
       <!-- arrow to output -->
       <path d="M616 92 L646 92" stroke="#d97706" stroke-width="2.4" />
       <polygon points="646,88 646,96 654,92" fill="#d97706" />
+      <circle cx="616" cy="92" r="2.5" fill="#d97706" class="hero-flow hero-flow-delay" />
 
       <!-- output guess -->
       <rect x="656" y="76" width="84" height="28" rx="5" fill="#1e293b" />

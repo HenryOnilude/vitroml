@@ -207,6 +207,9 @@
       <!-- the residual stream highway -->
       <rect x="4" y="14" width="372" height="18" rx="9" fill="#cbd5e1" />
       <rect x="4" y="14" width="372" height="18" rx="9" fill="none" stroke="#94a3b8" stroke-width="1" />
+      {#if attnOn || ffnOn}
+        <circle cy="23" r="3" fill="#d97706" class="stream-pulse" />
+      {/if}
       <text x="18" y="26.5" font-size="9" font-family="monospace" font-weight="700" fill="#1e293b">WORKING MEMORY →</text>
 
       <!-- attention read/write loop: reads down out of the stream, writes back in -->

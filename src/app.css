@@ -49,6 +49,58 @@
     animation: packet-idle 2.6s ease-in-out infinite;
   }
 
+  /* Directional flow motion: attention signal travels backward, stream
+     pulse travels forward — motion encodes the data-flow direction */
+  @keyframes ray-draw {
+    from { stroke-dashoffset: 100; }
+    to { stroke-dashoffset: 0; }
+  }
+  .ray-draw {
+    stroke-dasharray: 100;
+    animation: ray-draw 420ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+  }
+  .hero-arc {
+    stroke-dasharray: 100;
+    animation: ray-draw 800ms ease-out both;
+  }
+
+  @keyframes ray-march {
+    to { stroke-dashoffset: -5; }
+  }
+  .ray-march {
+    animation: ray-march 1s linear infinite;
+  }
+
+  @keyframes stream-pulse {
+    0% { transform: translateX(14px); opacity: 0; }
+    12% { opacity: 0.95; }
+    82% { opacity: 0.95; }
+    100% { transform: translateX(368px); opacity: 0; }
+  }
+  .stream-pulse {
+    animation: stream-pulse 1.9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+
+  @keyframes hero-flow {
+    0% { transform: translateX(0); opacity: 0; }
+    18% { opacity: 1; }
+    78% { opacity: 1; }
+    100% { transform: translateX(38px); opacity: 0; }
+  }
+  .hero-flow {
+    animation: hero-flow 2.6s ease-in-out infinite;
+  }
+  .hero-flow-delay {
+    animation-delay: 1.3s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ray-draw, .ray-march, .stream-pulse, .hero-arc, .hero-flow,
+    .animate-token-pop, .animate-packet-idle {
+      animation: none !important;
+    }
+  }
+
   /* Ultra-minimalist architectural scrollbar */
   ::-webkit-scrollbar {
     width: 4px;
