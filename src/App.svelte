@@ -338,6 +338,24 @@
     }
   });
 
+  // Chapter compass: the active chapter is the last marker above 40% of the viewport
+  let activeChapter = 1;
+  onMount(() => {
+    const updateChapter = () => {
+      const markers = document.querySelectorAll('[data-chapter]');
+      let current = 1;
+      for (const m of markers) {
+        if (m.getBoundingClientRect().top <= window.innerHeight * 0.4) {
+          current = Number((m as HTMLElement).dataset.chapter);
+        }
+      }
+      activeChapter = current;
+    };
+    window.addEventListener('scroll', updateChapter, { passive: true });
+    updateChapter();
+    return () => window.removeEventListener('scroll', updateChapter);
+  });
+
   function handleTokensChange(event: CustomEvent<{ prompt: string; tokens: number[] }>) {
     currentTokens = event.detail.tokens;
     currentPrompt = event.detail.prompt;
@@ -403,14 +421,16 @@
       </div>
     {:else}
       <!-- Unified Architectural Layout (Zero Fluff) -->
-      <div class="space-y-3">
+      <div class="space-y-3 relative">
+        <!-- Story spine: a continuous rail the chapter numbers sit on -->
+        <div class="absolute left-[17px] top-0 bottom-0 w-[2px] bg-slate-300/60 pointer-events-none" aria-hidden="true"></div>
         <!-- 0. Hero: what this is and what you can do with it -->
         <HeroSection {step2Label} on:guideStep={handleGuideStep} on:tour={() => (tourOpen = true)} />
 
         <!-- Chapter 1: give the model a story start -->
-        <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-          <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">1</span>
-          <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Give it a story start</span>
+        <div id="chapter-1" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="1">
+          <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">1</span>
+          <span class="font-serif font-bold text-lg text-ink tracking-tight">Give it a story start</span>
           <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
           <span class="text-[10px] font-sans text-ink-muted">type a beginning, then press play</span>
         </div>
@@ -432,9 +452,9 @@
         />
 
         <!-- Chapter 2: watch one word travel through the model, narrated live -->
-        <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-          <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">2</span>
-          <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Watch it think</span>
+        <div id="chapter-2" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="2">
+          <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">2</span>
+          <span class="font-serif font-bold text-lg text-ink tracking-tight">Watch it think</span>
           <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
           <span class="text-[10px] font-sans text-ink-muted">one word's journey through 6 layers, live</span>
         </div>
@@ -472,9 +492,9 @@
 
         <!-- 4. Act 1: watch the computation with both instruments side by side -->
         <div class={`space-y-3 min-w-0 ${mobileAct === 1 ? '' : 'hidden'} lg:block`}>
-          <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-            <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">3</span>
-            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Look inside</span>
+          <div id="chapter-3" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="3">
+            <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">3</span>
+            <span class="font-serif font-bold text-lg text-ink tracking-tight">Act 1 · Look inside</span>
             <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
             <span class="text-[10px] font-sans text-ink-muted">the same six heads appear in every view</span>
           </div>
@@ -504,9 +524,9 @@
 
         <!-- 5. Act 2: the experiment, a full-width section below -->
         <div class={`space-y-3 min-w-0 ${mobileAct === 2 ? '' : 'hidden'} lg:block`}>
-          <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-            <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">4</span>
-            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Break it</span>
+          <div id="chapter-4" class="flex flex-wrap items-center gap-2.5 px-1 min-w-0" data-chapter="4">
+            <span class="w-7 h-7 rounded bg-ink text-white text-xs font-mono font-bold flex items-center justify-center shrink-0 relative z-10">4</span>
+            <span class="font-serif font-bold text-lg text-ink tracking-tight">Act 2 · Break it</span>
             <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
             <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
           </div>
@@ -567,6 +587,34 @@
       </div>
     {/if}
   </main>
+
+  <!-- Chapter compass: persistent 'you are here' rail on wide screens -->
+  {#if !isLoading && !loadError}
+    <nav
+      class="hidden min-[1440px]:flex fixed left-4 top-1/2 -translate-y-1/2 flex-col items-center gap-1 z-40"
+      aria-label="Page chapters"
+    >
+      {#each [
+        { n: 1, label: 'Give it a story start' },
+        { n: 2, label: 'Watch it think' },
+        { n: 3, label: 'Act 1 · Look inside' },
+        { n: 4, label: 'Act 2 · Break it' },
+      ] as ch}
+        <a
+          href={`#chapter-${ch.n}`}
+          title={ch.label}
+          class={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono font-bold transition-all duration-300 ${
+            activeChapter === ch.n
+              ? 'bg-ink text-white scale-110 shadow-sm'
+              : 'bg-white text-ink-muted border border-hairline hover:border-ink hover:text-ink'
+          }`}
+        >
+          {ch.n}
+        </a>
+        {#if ch.n < 4}<span class="w-px h-5 bg-hairline"></span>{/if}
+      {/each}
+    </nav>
+  {/if}
 
   <!-- 5-slide guided tour: one concept at a time, with simple diagrams -->
   <GuidedTour open={tourOpen} on:close={() => (tourOpen = false)} on:done={() => (tourOpen = false)} />
