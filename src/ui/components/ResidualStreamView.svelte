@@ -508,6 +508,19 @@
       <!-- Current step top-3 candidates with step-over-step logit deltas -->
       {#if latestLens}
         <div class="mt-1.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <svg
+            viewBox="0 0 58 22"
+            class="w-14 h-[22px] shrink-0"
+            role="img"
+            title="How a guess appears: the 288 numbers are scored against all 32,000 vocabulary words, and the highest scores win"
+          >
+            <rect x="2" y="4" width="6" height="14" rx="1.5" fill="#334155" />
+            {#each [2, 5.5, 9, 12.5, 16, 19.5] as y, i}
+              <line x1="10" y1="11" x2="42" y2={y} stroke={i === 0 ? '#d97706' : '#cbd5e1'} stroke-width="1" />
+              <rect x="43" y={y - 1} width={i === 0 ? 11 : 5} height="2" rx="1" fill={i === 0 ? '#d97706' : '#cbd5e1'} />
+            {/each}
+            <text x="44" y="21.5" font-size="5" font-family="monospace" fill="#94a3b8">32k</text>
+          </svg>
           <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider shrink-0">Now:</span>
           {#each latestLens.top as pred}
             {@const delta = lensDeltaFor(pred.tokenId)}

@@ -31,6 +31,8 @@
     ? 0
     : (2 + currentLayer) / 9;
   $: isRunning = state?.status === 'running';
+  $: attnOn = currentPhase === 'post-attention' && !isCompleted;
+  $: ffnOn = currentPhase === 'post-ffn' && !isCompleted;
 </script>
 
 <div class="bg-white border border-hairline rounded p-3 shadow-subtle flex flex-col gap-2.5">
@@ -189,5 +191,56 @@
       <span class={`text-[10px] font-bold uppercase tracking-wider ${isCompleted ? 'text-amber-100' : 'text-ink-tertiary'}`}>Scores</span>
       <span class="text-xs">32k words</span>
     </div>
+  </div>
+
+  <!-- Layer anatomy diagram: how each layer reads the stream and writes back into it -->
+  <div class="relative bg-canvas-elevated border border-hairline rounded px-2 py-1 flex items-center gap-3 overflow-x-auto scrollbar-none">
+    <span class="text-[9px] font-mono font-bold uppercase tracking-wider text-ink-muted shrink-0 w-[74px] leading-tight">
+      Inside every layer
+    </span>
+    <svg
+      viewBox="0 0 340 52"
+      class="flex-1 min-w-[300px] h-11"
+      role="img"
+      aria-label="Diagram: working memory flows through; attention reads it, adds its answer back; memory does the same"
+    >
+      <!-- the residual stream highway -->
+      <rect x="4" y="12" width="332" height="14" rx="7" fill="#e2e8f0" />
+      <text x="14" y="22" font-size="7" font-family="monospace" font-weight="700" fill="#475569">WORKING MEMORY flows through →</text>
+
+      <!-- attention read/write loop: reads down out of the stream, writes back in -->
+      <path
+        d="M100 26 L100 38 Q100 43 105 43 L135 43 Q140 43 140 38 L140 26"
+        fill="none"
+        stroke={attnOn ? '#d97706' : '#94a3b8'}
+        stroke-width={attnOn ? 2.4 : 1.4}
+      />
+      <!-- read arrow (down) -->
+      <polygon points="97,33 103,33 100,38" fill={attnOn ? '#d97706' : '#94a3b8'} />
+      <!-- write-back arrow (up, into the stream) -->
+      <polygon points="137,33 143,33 140,26" fill={attnOn ? '#d97706' : '#94a3b8'} />
+      <text x="120" y="51" text-anchor="middle" font-size="7.5" font-family="sans-serif" font-weight="700" fill={attnOn ? '#92400e' : '#64748b'}>
+        looks back, then adds its answer
+      </text>
+      {#if attnOn}
+        <circle cx="120" cy="43" r="2.2" fill="#d97706" />
+      {/if}
+
+      <!-- memory read/write loop -->
+      <path
+        d="M230 26 L230 38 Q230 43 235 43 L265 43 Q270 43 270 38 L270 26"
+        fill="none"
+        stroke={ffnOn ? '#d97706' : '#94a3b8'}
+        stroke-width={ffnOn ? 2.4 : 1.4}
+      />
+      <polygon points="227,33 233,33 230,38" fill={ffnOn ? '#d97706' : '#94a3b8'} />
+      <polygon points="267,33 273,33 270,26" fill={ffnOn ? '#d97706' : '#94a3b8'} />
+      <text x="250" y="51" text-anchor="middle" font-size="7.5" font-family="sans-serif" font-weight="700" fill={ffnOn ? '#92400e' : '#64748b'}>
+        recalls patterns, then adds them
+      </text>
+      {#if ffnOn}
+        <circle cx="250" cy="43" r="2.2" fill="#d97706" />
+      {/if}
+    </svg>
   </div>
 </div>

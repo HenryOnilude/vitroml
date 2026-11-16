@@ -84,8 +84,17 @@
         {/if}
       </span>
     </div>
-    <span class="text-[10px] font-bold text-ink-muted uppercase tracking-wider" title="Each row is one head; darker cells get more of that head's attention">
-      darker = stronger focus
+    <span
+      class="flex items-center gap-1 shrink-0"
+      title="Color scale: each row is one head; brighter cells get more of that head's attention"
+    >
+      <span class="text-[9px] font-bold text-ink-muted uppercase tracking-wider">weak</span>
+      <svg viewBox="0 0 64 8" class="w-16 h-2 rounded-[2px] overflow-hidden" aria-hidden="true">
+        {#each Array(16) as _, i}
+          <rect x={i * 4} y="0" width="4.5" height="8" fill={cividis(i / 15)} />
+        {/each}
+      </svg>
+      <span class="text-[9px] font-bold text-ink-muted uppercase tracking-wider">strong</span>
     </span>
   </div>
 

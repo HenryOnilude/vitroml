@@ -154,7 +154,54 @@
 
     {#if comparisonResult}
       {@const maxProb = Math.max(...comparisonResult.top3Pairs.flatMap((p) => [p.baselineProb, p.ablatedProb]), 0.01)}
+      {@const beforePiece = comparisonResult.baselineTop.tokenPiece.trim().slice(0, 8)}
+      {@const afterPiece = comparisonResult.ablatedTop.tokenPiece.trim().slice(0, 8)}
       <div class="space-y-2.5 transition-all duration-200">
+        <!-- Experiment diagram: which head was cut, and what came out before vs after -->
+        <svg
+          viewBox="0 0 340 44"
+          class="w-full h-11"
+          role="img"
+          aria-label={`Head ${selectedHead} of layer ${selectedLayer} was switched off; the guess changed from "${beforePiece}" to "${afterPiece}"`}
+        >
+          <!-- six heads of the layer, target crossed out -->
+          {#each Array(6) as _, i}
+            <rect
+              x={4 + i * 24}
+              y="8"
+              width="20"
+              height="20"
+              rx="3"
+              fill={i === comparisonResult.targetHead ? '#b91c1c' : '#334155'}
+              opacity={i === comparisonResult.targetHead ? 0.95 : 0.55}
+            />
+            <text x={14 + i * 24} y="22" text-anchor="middle" font-size="8" font-family="monospace" font-weight="700" fill="white">H{i}</text>
+            {#if i === comparisonResult.targetHead}
+              <line x1={8 + i * 24} y1="11" x2={20 + i * 24} y2="25" stroke="white" stroke-width="1.6" />
+              <line x1={20 + i * 24} y1="11" x2={8 + i * 24} y2="25" stroke="white" stroke-width="1.6" />
+            {/if}
+          {/each}
+          <text x="4" y="40" font-size="6.5" font-family="monospace" fill="#64748b">L{selectedLayer} · H{comparisonResult.targetHead} off</text>
+
+          <!-- arrow to before -->
+          <line x1="152" y1="18" x2="168" y2="18" stroke="#94a3b8" stroke-width="1.5" />
+          <polygon points="168,15 168,21 175,18" fill="#94a3b8" />
+
+          <!-- before chip -->
+          <rect x="176" y="6" width="66" height="26" rx="4" fill="white" stroke="#94a3b8" />
+          <text x="209" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill="#1e293b">"{beforePiece}"</text>
+          <text x="209" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{(comparisonResult.baselineTopProb * 100).toFixed(0)}% before</text>
+
+          <!-- arrow to after -->
+          <line x1="246" y1="18" x2="262" y2="18" stroke="#94a3b8" stroke-width="1.5" />
+          <polygon points="262,15 262,21 269,18" fill="#94a3b8" />
+
+          <!-- after chip -->
+          <rect x="270" y="6" width="66" height="26" rx="4" fill={comparisonResult.predictionFlipped ? '#fff7ed' : 'white'} stroke={comparisonResult.predictionFlipped ? '#c2410c' : '#94a3b8'} />
+          <text x="303" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={comparisonResult.predictionFlipped ? '#9a3412' : '#1e293b'}>"{afterPiece}"</text>
+          <text x="303" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{(comparisonResult.ablatedTopProb * 100).toFixed(0)}% after</text>
+        </svg>
+
         <!-- Plain-English verdict -->
         <div class={`rounded p-2 text-xs font-sans border ${
           comparisonResult.predictionFlipped
