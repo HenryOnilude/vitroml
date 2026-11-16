@@ -270,7 +270,7 @@
     {#if attentionRays && currentPos > 0 && arcPaths.length > 0}
       <div class="px-3 pt-1.5 flex items-center justify-between text-[10px] font-mono">
         <span class="text-accent-bronze font-bold flex items-center gap-1.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-accent-bronze animate-pulse"></span>
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-clay animate-pulse"></span>
           <span>Head L{attentionRays.layer}:H{attentionRays.head} Attention Rays</span>
         </span>
         <span class="text-ink-muted">curved arcs = words this head looks back to</span>

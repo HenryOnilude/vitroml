@@ -42,7 +42,8 @@ export default {
         },
         accent: {
           DEFAULT: '#111215',
-          bronze: '#b45309',
+          bronze: '#b45309',      // accent text only — needs 4.5:1 on canvas
+          clay: '#d97706',        // accent surfaces: fills, dots, bars, diagram marks
           bronzeLight: '#fef3c7',
           blue: '#2563eb',
           rose: '#e11d48',
