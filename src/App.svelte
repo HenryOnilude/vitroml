@@ -407,7 +407,13 @@
         <!-- 0. Hero: what this is and what you can do with it -->
         <HeroSection {step2Label} on:guideStep={handleGuideStep} on:tour={() => (tourOpen = true)} />
 
-        <!-- 1. Interactive Control Strip -->
+        <!-- Chapter 1: give the model a story start -->
+        <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
+          <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">1</span>
+          <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Give it a story start</span>
+          <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+          <span class="text-[10px] font-sans text-ink-muted">type a beginning, then press play</span>
+        </div>
         <WorkbenchToolbar
           {tokenizer}
           {controller}
@@ -425,7 +431,13 @@
           on:userReset={resetGenerationState}
         />
 
-        <!-- 2. Live Narrative Strip: what the model is doing right now -->
+        <!-- Chapter 2: watch one word travel through the model, narrated live -->
+        <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
+          <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">2</span>
+          <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Watch it think</span>
+          <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
+          <span class="text-[10px] font-sans text-ink-muted">one word's journey through 6 layers, live</span>
+        </div>
         <NarrativeBar
           state={$stateStore ?? null}
           {currentToken}
@@ -461,7 +473,8 @@
         <!-- 4. Act 1: watch the computation with both instruments side by side -->
         <div class={`space-y-3 min-w-0 ${mobileAct === 1 ? '' : 'hidden'} lg:block`}>
           <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Inside the computation</span>
+            <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">3</span>
+            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 1 · Look inside</span>
             <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
             <span class="text-[10px] font-sans text-ink-muted">the same six heads appear in every view</span>
           </div>
@@ -492,7 +505,8 @@
         <!-- 5. Act 2: the experiment, a full-width section below -->
         <div class={`space-y-3 min-w-0 ${mobileAct === 2 ? '' : 'hidden'} lg:block`}>
           <div class="flex flex-wrap items-center gap-2 px-1 min-w-0">
-            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Run the experiment</span>
+            <span class="w-5 h-5 rounded bg-ink text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0">4</span>
+            <span class="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-ink-muted">Act 2 · Break it</span>
             <span class="flex-1 h-px bg-hairline min-w-[1rem]"></span>
             <span class="text-[10px] font-sans text-ink-muted">switch a head off, measure what breaks</span>
           </div>
