@@ -65,14 +65,20 @@
           or take the 5-slide tour →
         </button>
       </div>
+      <p class="text-[10px] text-ink-muted leading-snug -mt-0.5">
+        The whole idea in three clicks: run it, break one part, see what changed.
+      </p>
       <button
         type="button"
         on:click={() => dispatch('guideStep', 1)}
         class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">1.</span>
-        <span class="text-slate-900 group-hover:text-ink flex-1">Press Play and watch one word travel through the model.</span>
-        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0">→</span>
+        <span class="flex-1 min-w-0">
+          <span class="block text-slate-900 group-hover:text-ink font-semibold">Press Play in the controls below.</span>
+          <span class="block text-[10px] text-ink-muted leading-snug mt-0.5">The model guesses the next word. Watch it travel through all 6 layers as each part lights up.</span>
+        </span>
+        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0 mt-0.5">→</span>
       </button>
       <button
         type="button"
@@ -80,8 +86,11 @@
         class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">2.</span>
-        <span class="text-slate-900 group-hover:text-ink flex-1">{step2Label}</span>
-        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0">→</span>
+        <span class="flex-1 min-w-0">
+          <span class="block text-slate-900 group-hover:text-ink font-semibold">{step2Label}</span>
+          <span class="block text-[10px] text-ink-muted leading-snug mt-0.5">Attention heads are small parts that look back at earlier words. L is the layer number, H is the head inside it.</span>
+        </span>
+        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0 mt-0.5">→</span>
       </button>
       <button
         type="button"
@@ -89,8 +98,11 @@
         class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">3.</span>
-        <span class="text-slate-900 group-hover:text-ink flex-1">Read what changes in the experiment result.</span>
-        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0">→</span>
+        <span class="flex-1 min-w-0">
+          <span class="block text-slate-900 group-hover:text-ink font-semibold">Read what changed in the experiment result.</span>
+          <span class="block text-[10px] text-ink-muted leading-snug mt-0.5">The guess before and after, side by side. If the word or its confidence moved, that head was doing real work.</span>
+        </span>
+        <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0 mt-0.5">→</span>
       </button>
     </div>
   </div>
