@@ -37,6 +37,9 @@
         Step through it layer by layer, watch it write a story word by word,
         and switch off attention heads to see how the answer changes.
       </p>
+      <div class="mt-2 p-2 bg-amber-50/70 border border-amber-200 rounded text-xs font-sans text-amber-950">
+        <strong class="font-semibold text-ink">What is this?</strong> Vitro is an interactive microscope for language models: watch how an AI writes a story one word at a time, and turn off parts of its brain to see how its predictions change (this is an exploratory tool to inspect neural network reasoning, not a data-cleaning or training tool).
+      </div>
       <div class="flex flex-wrap items-center gap-2 mt-2.5 text-[10px] font-mono text-ink-muted font-bold">
         <span>15.2M params</span>
         <span class="text-hairline-bright">·</span>
