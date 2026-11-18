@@ -270,12 +270,13 @@
               says <strong class="font-mono" title={afterPrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if afterPrefix}<span class="opacity-40">{afterPrefix}</span>{/if}{comparisonResult.ablatedTop.tokenPiece.trim()}"</strong>
               instead of <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>.
             {:else if comparisonResult.ablatedTopProb < comparisonResult.baselineTopProb}
-              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
-              but its confidence dropped from {fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}
-              to {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}.
+              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>
+              — the word stays the same, but this head was helping it: confidence drops
+              {fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}
+              → {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}.
             {:else}
-              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
-              and its confidence barely moved
+              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>
+              — the word and its confidence barely move
               ({fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} → {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}).
             {/if}
           </span>

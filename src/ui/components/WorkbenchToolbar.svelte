@@ -37,8 +37,18 @@
 
   function cycleSpeed() {
     speedIdx = (speedIdx + 1) % SPEEDS.length;
-    controller?.setStepDelay(SPEEDS[speedIdx].ms);
   }
+
+  // Prompt positions replay known context — animate them at a boosted pace so
+  // the wait before the first generated word stays short. The user's speed
+  // choice still applies to every model-written word.
+  const PREFILL_BOOST = 4;
+  function delayFor(pos: number, promptLen: number, idx: number) {
+    const base = SPEEDS[idx].ms;
+    const inPrefill = pos > 0 && pos <= promptLen;
+    return inPrefill ? Math.max(120, Math.round(base / PREFILL_BOOST)) : base;
+  }
+  $: if (controller) controller.setStepDelay(delayFor(currentPos, tokenItems.length, speedIdx));
 
   let tokenItems: TokenDisplay[] = [];
   let tokenStrip: HTMLElement | null = null;
