@@ -33,6 +33,15 @@ export interface AblationComparisonResult {
   predictionFlipped: boolean;
   baselineTop: TokenPrediction;
   ablatedTop: TokenPrediction;
+  /** pre-softmax logit of the clean run's top-1 token, in each run */
+  baselineTopLogit: number;
+  ablatedTopTokenLogit: number;
+  /** baselineTopLogit − ablatedTopTokenLogit. Positive = zeroing this head
+   *  weakened the top guess; negative = the guess got stronger. */
+  top1LogitDrop: number;
+  /** logit margin top1 − top2 in each run */
+  baselineMargin: number;
+  ablatedMargin: number;
 }
 
 /**
@@ -247,6 +256,293 @@ export function measureHeadAblationL2(
 }
 
 /**
+ * Per-head impact used for ranking on the circuit map: the drop in the clean
+ * run's top-1 token pre-softmax logit when the head is zero-ablated.
+ * Positive = the head supported the top guess; negative = zeroing it
+ * strengthened the top guess (a suppressor head).
+ */
+export interface HeadImpact {
+  layer: number;
+  head: number;
+  top1LogitDrop: number;
+  /** true when ablation changes the argmax token */
+  predictionFlipped: boolean;
+  /** top1 − top2 logit margin in the ablated run (baseline margin is scan-level) */
+  ablatedMargin: number;
+}
+
+export interface HeadImpactScan {
+  impacts: (HeadImpact | null)[][];
+  baselineLogits: Float32Array;
+  baselineTopTokenId: number;
+  baselineTopPiece: string;
+  /** top1 − top2 logit margin in the clean run */
+  baselineMargin: number;
+  /** false when stopped early via isCancelled */
+  completed: boolean;
+}
+
+export interface ScanOptions {
+  /** called as each head's measurement lands, for progressive grid fill */
+  onCell?: (impact: HeadImpact) => void;
+  /** called once the shared clean-run logits are known */
+  onBaseline?: (baselineLogits: Float32Array) => void;
+  /** checked between token forwards and between heads; scan stops when true */
+  isCancelled?: () => boolean;
+}
+
+/** Cache key for a (prompt, position) measurement: position + token prefix. */
+export function comparisonCacheKey(tokenList: number[], pos: number): string {
+  const maxPos = Math.min(pos, tokenList.length - 1);
+  return `${maxPos}|${tokenList.slice(0, maxPos + 1).join(',')}`;
+}
+
+/** Indices of the two highest logits. */
+function top2Indices(logits: ArrayLike<number>): { i1: number; i2: number } {
+  let i1 = 0;
+  let i2 = 1;
+  if (logits[i2] > logits[i1]) {
+    i1 = 1;
+    i2 = 0;
+  }
+  for (let i = 2; i < logits.length; i++) {
+    const v = logits[i];
+    if (v > logits[i1]) {
+      i2 = i1;
+      i1 = i;
+    } else if (v > logits[i2]) {
+      i2 = i;
+    }
+  }
+  return { i1, i2 };
+}
+
+// Long synchronous chunks yield to the event loop at most every YIELD_BUDGET_MS
+// so scans and comparisons never freeze the UI.
+const YIELD_BUDGET_MS = 24;
+
+/**
+ * Async version of the per-token forward loop used by scans and comparisons.
+ * Replays the sequence through the KV cache, yielding to the event loop under
+ * a time budget. Returns null when cancelled.
+ */
+async function runSequenceLogits(
+  tokenList: number[],
+  maxPos: number,
+  hooks: HookRegistry,
+  config: ModelConfig,
+  weights: ModelWeights,
+  isCancelled?: () => boolean
+): Promise<Float32Array | null> {
+  const bufs = createRunBuffers(config);
+  let logitsTensor: Tensor | null = null;
+  let budgetStart = performance.now();
+  for (let p = 0; p <= maxPos; p++) {
+    logitsTensor = forward(tokenList[p], p, config, weights, bufs, hooks);
+    if (isCancelled?.()) return null;
+    if (performance.now() - budgetStart > YIELD_BUDGET_MS) {
+      await new Promise((r) => setTimeout(r, 0));
+      budgetStart = performance.now();
+    }
+  }
+  const t = logitsTensor!;
+  return Float32Array.from(t.data.subarray(t.offset, t.offset + config.vocabSize));
+}
+
+/**
+ * Measures every head's top-1 logit drop at a position: one shared clean run,
+ * then one zero-ablated run per head, computed asynchronously and reported
+ * cell-by-cell via onCell. Returns partial results with completed=false when
+ * cancelled — callers should not cache incomplete scans.
+ */
+export async function scanHeadImpacts(
+  tokens: number[],
+  pos: number,
+  config: ModelConfig,
+  weights: ModelWeights,
+  tokenizer: Tokenizer,
+  opts: ScanOptions = {}
+): Promise<HeadImpactScan | null> {
+  const maxPos = Math.min(pos, tokens.length - 1);
+  const tokenList = tokens.slice(0, maxPos + 1);
+
+  const baselineLogits = await runSequenceLogits(
+    tokenList,
+    maxPos,
+    new HookRegistry(),
+    config,
+    weights,
+    opts.isCancelled
+  );
+  if (!baselineLogits) return null;
+  opts.onBaseline?.(baselineLogits);
+
+  const { i1: top1, i2: top2 } = top2Indices(baselineLogits);
+  const baselineMargin = baselineLogits[top1] - baselineLogits[top2];
+  const baselineTopPiece = tokenizer.decode(tokenList[maxPos], top1);
+
+  const impacts: (HeadImpact | null)[][] = Array.from({ length: config.nLayers }, () =>
+    Array(config.nHeads).fill(null)
+  );
+  const partial = (): HeadImpactScan => ({
+    impacts,
+    baselineLogits,
+    baselineTopTokenId: top1,
+    baselineTopPiece,
+    baselineMargin,
+    completed: false,
+  });
+
+  for (let l = 0; l < config.nLayers; l++) {
+    for (let h = 0; h < config.nHeads; h++) {
+      if (opts.isCancelled?.()) return partial();
+      const hooks = new HookRegistry();
+      zeroAblateHead(hooks, l, h, config.nHeads, config.dim);
+      const ablated = await runSequenceLogits(
+        tokenList,
+        maxPos,
+        hooks,
+        config,
+        weights,
+        opts.isCancelled
+      );
+      if (!ablated) return partial();
+      const at = top2Indices(ablated);
+      const impact: HeadImpact = {
+        layer: l,
+        head: h,
+        top1LogitDrop: baselineLogits[top1] - ablated[top1],
+        predictionFlipped: at.i1 !== top1,
+        ablatedMargin: ablated[at.i1] - ablated[at.i2],
+      };
+      impacts[l][h] = impact;
+      opts.onCell?.(impact);
+    }
+  }
+
+  return {
+    impacts,
+    baselineLogits,
+    baselineTopTokenId: top1,
+    baselineTopPiece,
+    baselineMargin,
+    completed: true,
+  };
+}
+
+/**
+ * Runs a baseline forward pass and an intervened (zero-ablated) forward pass,
+ * comparing the resulting output logits and top-5 token predictions.
+ * Accepts either a single token or a sequence of tokens to populate KV cache up to pos.
+ */
+/**
+ * Shared metrics for the clean/ablated comparison. Both the sync and async
+ * entry points end here so the result panel and circuit map can never
+ * disagree about what was measured.
+ */
+function summarizeComparison(
+  baselineLogits: ArrayLike<number>,
+  ablatedLogits: ArrayLike<number>,
+  targetLayer: number,
+  targetHead: number,
+  maxPos: number,
+  currentToken: number,
+  testedPiece: string,
+  config: ModelConfig,
+  tokenizer: Tokenizer
+): AblationComparisonResult {
+  const vocabSize = config.vocabSize;
+
+  let maxAbsDiff = 0.0;
+  let sumSquaredDiff = 0.0;
+  for (let i = 0; i < vocabSize; i++) {
+    const diff = ablatedLogits[i] - baselineLogits[i];
+    const absDiff = Math.abs(diff);
+    if (absDiff > maxAbsDiff) {
+      maxAbsDiff = absDiff;
+    }
+    sumSquaredDiff += diff * diff;
+  }
+  const l2Diff = Math.sqrt(sumSquaredDiff);
+
+  // Top 5 Baseline
+  const baselineRanked: { idx: number; logit: number }[] = [];
+  const ablatedRanked: { idx: number; logit: number }[] = [];
+  for (let i = 0; i < vocabSize; i++) {
+    baselineRanked.push({ idx: i, logit: baselineLogits[i] });
+    ablatedRanked.push({ idx: i, logit: ablatedLogits[i] });
+  }
+  baselineRanked.sort((a, b) => b.logit - a.logit);
+  ablatedRanked.sort((a, b) => b.logit - a.logit);
+
+  const baselineTop5: TokenPrediction[] = baselineRanked.slice(0, 5).map((item) => ({
+    tokenId: item.idx,
+    tokenPiece: tokenizer.decode(currentToken, item.idx),
+    logit: item.logit,
+  }));
+
+  const ablatedTop5: TokenPrediction[] = ablatedRanked.slice(0, 5).map((item) => ({
+    tokenId: item.idx,
+    tokenPiece: tokenizer.decode(currentToken, item.idx),
+    logit: item.logit,
+    delta: item.logit - baselineLogits[item.idx],
+  }));
+
+  const baselineTop = baselineTop5[0];
+  const ablatedTop = ablatedTop5[0];
+  const predictionFlipped = baselineTop.tokenId !== ablatedTop.tokenId;
+
+  // Pre-softmax metrics: the clean run's top-1 token under ablation, and the
+  // top1 − top2 margin in each run.
+  const baselineTopLogit = baselineLogits[baselineTop.tokenId];
+  const ablatedTopTokenLogit = ablatedLogits[baselineTop.tokenId];
+  const top1LogitDrop = baselineTopLogit - ablatedTopTokenLogit;
+  const baselineMargin = baselineRanked[0].logit - baselineRanked[1].logit;
+  const ablatedMargin = ablatedRanked[0].logit - ablatedRanked[1].logit;
+
+  // Softmax probabilities of the baseline top token and top-3 pairs for the
+  // plain-English result view (confidence drop + before/after bars).
+  const probOf = (logits: ArrayLike<number>, id: number): number => {
+    let max = -Infinity;
+    for (let i = 0; i < logits.length; i++) if (logits[i] > max) max = logits[i];
+    let sum = 0;
+    for (let i = 0; i < logits.length; i++) sum += Math.exp(logits[i] - max);
+    return Math.exp(logits[id] - max) / sum;
+  };
+  const baselineTopProb = probOf(baselineLogits, baselineTop.tokenId);
+  const ablatedTopProb = probOf(ablatedLogits, baselineTop.tokenId);
+  const top3Pairs = baselineTop5.slice(0, 3).map((t) => ({
+    tokenId: t.tokenId,
+    tokenPiece: t.tokenPiece,
+    baselineProb: probOf(baselineLogits, t.tokenId),
+    ablatedProb: probOf(ablatedLogits, t.tokenId),
+  }));
+
+  return {
+    targetLayer,
+    targetHead,
+    testedPos: maxPos,
+    testedToken: currentToken,
+    testedPiece,
+    baselineTop5,
+    ablatedTop5,
+    baselineTopProb,
+    ablatedTopProb,
+    top3Pairs,
+    l2Diff,
+    maxAbsDiff,
+    predictionFlipped,
+    baselineTop,
+    ablatedTop,
+    baselineTopLogit,
+    ablatedTopTokenLogit,
+    top1LogitDrop,
+    baselineMargin,
+    ablatedMargin,
+  };
+}
+
+/**
  * Runs a baseline forward pass and an intervened (zero-ablated) forward pass,
  * comparing the resulting output logits and top-5 token predictions.
  * Accepts either a single token or a sequence of tokens to populate KV cache up to pos.
@@ -295,81 +591,76 @@ export function compareHeadAblation(
     )
   );
 
-  // 3. Compute Metrics
-  let maxAbsDiff = 0.0;
-  let sumSquaredDiff = 0.0;
-  for (let i = 0; i < config.vocabSize; i++) {
-    const diff = ablatedLogits[i] - baselineLogits[i];
-    const absDiff = Math.abs(diff);
-    if (absDiff > maxAbsDiff) {
-      maxAbsDiff = absDiff;
-    }
-    sumSquaredDiff += diff * diff;
-  }
-  const l2Diff = Math.sqrt(sumSquaredDiff);
-
-  // Top 5 Baseline
-  const baselineRanked = baselineLogits
-    .map((logit, idx) => ({ idx, logit }))
-    .sort((a, b) => b.logit - a.logit)
-    .slice(0, 5);
-
-  const baselineTop5: TokenPrediction[] = baselineRanked.map((item) => ({
-    tokenId: item.idx,
-    tokenPiece: tokenizer.decode(currentToken, item.idx),
-    logit: item.logit,
-  }));
-
-  // Top 5 Ablated (with deltas against baseline)
-  const ablatedRanked = ablatedLogits
-    .map((logit, idx) => ({ idx, logit }))
-    .sort((a, b) => b.logit - a.logit)
-    .slice(0, 5);
-
-  const ablatedTop5: TokenPrediction[] = ablatedRanked.map((item) => ({
-    tokenId: item.idx,
-    tokenPiece: tokenizer.decode(currentToken, item.idx),
-    logit: item.logit,
-    delta: item.logit - baselineLogits[item.idx],
-  }));
-
-  const baselineTop = baselineTop5[0];
-  const ablatedTop = ablatedTop5[0];
-  const predictionFlipped = baselineTop.tokenId !== ablatedTop.tokenId;
-
-  // Softmax probabilities of the baseline top token and top-3 pairs for the
-  // plain-English result view (confidence drop + before/after bars).
-  const probOf = (logits: number[], id: number): number => {
-    let max = -Infinity;
-    for (const v of logits) if (v > max) max = v;
-    let sum = 0;
-    for (const v of logits) sum += Math.exp(v - max);
-    return Math.exp(logits[id] - max) / sum;
-  };
-  const baselineTopProb = probOf(baselineLogits, baselineTop.tokenId);
-  const ablatedTopProb = probOf(ablatedLogits, baselineTop.tokenId);
-  const top3Pairs = baselineTop5.slice(0, 3).map((t) => ({
-    tokenId: t.tokenId,
-    tokenPiece: t.tokenPiece,
-    baselineProb: probOf(baselineLogits, t.tokenId),
-    ablatedProb: probOf(ablatedLogits, t.tokenId),
-  }));
-
-  return {
+  return summarizeComparison(
+    baselineLogits,
+    ablatedLogits,
     targetLayer,
     targetHead,
-    testedPos: maxPos,
-    testedToken: currentToken,
+    maxPos,
+    currentToken,
     testedPiece,
-    baselineTop5,
-    ablatedTop5,
-    baselineTopProb,
-    ablatedTopProb,
-    top3Pairs,
-    l2Diff,
-    maxAbsDiff,
-    predictionFlipped,
-    baselineTop,
-    ablatedTop,
-  };
+    config,
+    tokenizer
+  );
+}
+
+/**
+ * Non-blocking version of compareHeadAblation: identical metrics, but the two
+ * sequence passes yield to the event loop under a time budget. Returns null
+ * when cancelled. Pass baselineLogits from a scan to skip the clean run.
+ */
+export async function compareHeadAblationAsync(
+  tokensOrToken: number[] | number,
+  pos: number,
+  targetLayer: number,
+  targetHead: number,
+  config: ModelConfig,
+  weights: ModelWeights,
+  tokenizer: Tokenizer,
+  opts: {
+    baselineLogits?: ArrayLike<number>;
+    isCancelled?: () => boolean;
+  } = {}
+): Promise<AblationComparisonResult | null> {
+  const tokenList = Array.isArray(tokensOrToken) ? tokensOrToken : [tokensOrToken];
+  const maxPos = Math.min(pos, tokenList.length - 1);
+  const currentToken = tokenList[maxPos];
+  const prevToken = maxPos > 0 ? tokenList[maxPos - 1] : 1;
+  const testedPiece = tokenizer.decode(prevToken, currentToken);
+
+  const baselineLogits =
+    opts.baselineLogits ??
+    (await runSequenceLogits(
+      tokenList,
+      maxPos,
+      new HookRegistry(),
+      config,
+      weights,
+      opts.isCancelled
+    ));
+  if (!baselineLogits || opts.isCancelled?.()) return null;
+
+  const ablatedHooks = new HookRegistry();
+  zeroAblateHead(ablatedHooks, targetLayer, targetHead, config.nHeads, config.dim);
+  const ablatedLogits = await runSequenceLogits(
+    tokenList,
+    maxPos,
+    ablatedHooks,
+    config,
+    weights,
+    opts.isCancelled
+  );
+  if (!ablatedLogits) return null;
+
+  return summarizeComparison(
+    baselineLogits,
+    ablatedLogits,
+    targetLayer,
+    targetHead,
+    maxPos,
+    currentToken,
+    testedPiece,
+    config,
+    tokenizer
+  );
 }

@@ -3,7 +3,8 @@
   import type { ModelConfig, ModelWeights } from '../../engine/model';
   import type { Tokenizer } from '../../engine/tokenizer';
   import {
-    compareHeadAblation,
+    compareHeadAblationAsync,
+    comparisonCacheKey,
     type AblationComparisonResult,
   } from '../../engine/analysis';
   import HeadGrid from './HeadGrid.svelte';
@@ -12,8 +13,13 @@
   export let weights: ModelWeights | null = null;
   export let tokenizer: Tokenizer | null = null;
   export let currentActiveLayer: number = -1;
-  // Measured per-head importance (‖Δlogits‖₂ on ablation), fills in progressively
+  // Measured per-head impact (top-1 logit drop on ablation), fills in progressively
   export let importance: (number | null)[][] | null = null;
+  // Scan progress for the measuring indicator on the grid
+  export let scanProgress: { done: number; total: number } | null = null;
+  // Clean-run logits for the active position, shared by the scan — skips the
+  // panel's own baseline pass when the key matches.
+  export let baseline: { key: string; logits: Float32Array } | null = null;
   export let tokens: number[] = [1];
   export let activePos: number = 0;
   export let highlightedTarget: 'controls' | 'circuit' | 'result' | null = null;
@@ -41,29 +47,39 @@
   let lastRanLayer = -1;
   let lastRanHead = -1;
 
-  function runAblation(layer = selectedLayer, head = selectedHead, pos = activePos, currentTokens = tokens) {
+  // Each run gets a ticket; a newer run cancels the older one so a stale
+  // result can never overwrite the panel for the current position.
+  let runTicket = 0;
+
+  async function runAblation(layer = selectedLayer, head = selectedHead, pos = activePos, currentTokens = tokens) {
     if (!config || !weights || !tokenizer) return;
+    const my = ++runTicket;
     isComputing = true;
     ablatedLayer = layer;
     ablatedHead = head;
 
-    setTimeout(() => {
-      try {
-        comparisonResult = compareHeadAblation(
-          currentTokens,
-          pos,
-          layer,
-          head,
-          config,
-          weights,
-          tokenizer
-        );
-      } catch (err) {
-        console.error('Failed to run head ablation comparison:', err);
-      } finally {
-        isComputing = false;
-      }
-    }, 10);
+    try {
+      const key = comparisonCacheKey(currentTokens, pos);
+      const result = await compareHeadAblationAsync(
+        currentTokens,
+        pos,
+        layer,
+        head,
+        config,
+        weights,
+        tokenizer,
+        {
+          baselineLogits: baseline && baseline.key === key ? baseline.logits : undefined,
+          isCancelled: () => runTicket !== my,
+        }
+      );
+      if (runTicket !== my) return;
+      if (result) comparisonResult = result;
+    } catch (err) {
+      console.error('Failed to run head ablation comparison:', err);
+    } finally {
+      if (runTicket === my) isComputing = false;
+    }
   }
 
   // Reactively rerun when head is changed, active position changes, or sequence updates
@@ -93,6 +109,23 @@
   function handleHeadHover(event: CustomEvent<{ layer: number; head: number | null }>) {
     dispatch('headHover', event.detail);
   }
+
+  // Honest probability display: never round a real change away.
+  // - p > 99.9% shows ">99.9%" (avoids claiming certainty)
+  // - p < 0.1% shows "<0.1%" (avoids claiming impossibility)
+  // - when the before/after change is under 1 percentage point, show two decimals
+  function fmtPct(p: number, change: number): string {
+    if (p > 0.999) return '>99.9%';
+    if (p < 0.001) return '<0.1%';
+    const pct = p * 100;
+    return Math.abs(change * 100) < 1 ? pct.toFixed(2) + '%' : pct.toFixed(0) + '%';
+  }
+
+  // Signed logit-change badge for the clean run's top-1 token, e.g. "-2.4 logits"
+  function fmtLogitDelta(result: AblationComparisonResult): string {
+    const delta = result.ablatedTopTokenLogit - result.baselineTopLogit;
+    return `${delta > 0 ? '+' : ''}${delta.toFixed(1)} logits`;
+  }
 </script>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
@@ -104,6 +137,7 @@
     {ablatedHead}
     {currentActiveLayer}
     {importance}
+    scanLabel={scanProgress ? `measuring impacts… ${scanProgress.done}/${scanProgress.total}` : null}
     highlighted={highlightedTarget === 'circuit'}
     on:select={handleHeadSelected}
     on:hover={handleHeadHover}
@@ -190,7 +224,7 @@
           <!-- before chip -->
           <rect x="176" y="6" width="66" height="26" rx="4" fill="white" stroke="#94a3b8" />
           <text x="209" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill="#1e293b">"{beforePiece}"</text>
-          <text x="209" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{(comparisonResult.baselineTopProb * 100).toFixed(0)}% before</text>
+          <text x="209" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} before</text>
 
           <!-- arrow to after -->
           <line x1="246" y1="18" x2="262" y2="18" stroke="#94a3b8" stroke-width="1.5" />
@@ -199,7 +233,7 @@
           <!-- after chip -->
           <rect x="270" y="6" width="66" height="26" rx="4" fill={comparisonResult.predictionFlipped ? '#fff7ed' : 'white'} stroke={comparisonResult.predictionFlipped ? '#c2410c' : '#94a3b8'} />
           <text x="303" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={comparisonResult.predictionFlipped ? '#9a3412' : '#1e293b'}>"{afterPiece}"</text>
-          <text x="303" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{(comparisonResult.ablatedTopProb * 100).toFixed(0)}% after</text>
+          <text x="303" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} after</text>
         </svg>
 
         <!-- Plain-English verdict -->
@@ -216,14 +250,26 @@
               instead of <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>.
             {:else if comparisonResult.ablatedTopProb < comparisonResult.baselineTopProb}
               still says <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
-              but its confidence dropped from {(comparisonResult.baselineTopProb * 100).toFixed(0)}%
-              to {(comparisonResult.ablatedTopProb * 100).toFixed(0)}%.
+              but its confidence dropped from {fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}
+              to {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}.
             {:else}
               still says <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
               and its confidence barely moved
-              ({(comparisonResult.baselineTopProb * 100).toFixed(0)}% → {(comparisonResult.ablatedTopProb * 100).toFixed(0)}%).
+              ({fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} → {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}).
             {/if}
           </span>
+          <!-- Logit badge: the raw score change, always visible even when
+               probabilities round to the same percent -->
+          <span
+            class="ml-1.5 inline-block align-middle px-1.5 py-0.5 rounded font-mono text-[10px] font-bold border"
+            class:bg-orange-50={comparisonResult.top1LogitDrop > 0}
+            class:border-accent-rust={comparisonResult.top1LogitDrop > 0}
+            class:text-accent-rust={comparisonResult.top1LogitDrop > 0}
+            class:bg-canvas-elevated={comparisonResult.top1LogitDrop <= 0}
+            class:border-hairline={comparisonResult.top1LogitDrop <= 0}
+            class:text-ink-secondary={comparisonResult.top1LogitDrop <= 0}
+            title="Change to the top word's pre-softmax score when this head is off"
+          >{fmtLogitDelta(comparisonResult)}</span>
         </div>
 
         <!-- Paired before/after bars: baseline top-3, same order and scale -->
@@ -236,7 +282,7 @@
             <div class="space-y-0.5">
               <div class="flex items-center justify-between text-[11px]">
                 <span class="font-sans font-bold text-ink">"{pair.tokenPiece.trim()}"</span>
-                <span class="font-mono text-[10px] text-ink-muted">{(pair.baselineProb * 100).toFixed(0)}% → {(pair.ablatedProb * 100).toFixed(0)}%</span>
+                <span class="font-mono text-[10px] text-ink-muted">{fmtPct(pair.baselineProb, pair.ablatedProb - pair.baselineProb)} → {fmtPct(pair.ablatedProb, pair.ablatedProb - pair.baselineProb)}</span>
               </div>
               <div class="h-1.5 bg-canvas-elevated rounded-full overflow-hidden">
                 <div class="h-full bg-slate-400 rounded-full" style={`width: ${(pair.baselineProb / maxProb) * 100}%`}></div>
@@ -251,7 +297,27 @@
         <!-- Technical metrics, collapsed -->
         <details class="text-xs">
           <summary class="cursor-pointer text-[10px] font-sans font-semibold text-ink-muted hover:text-ink select-none">Details</summary>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono mt-1.5">
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center text-xs font-mono mt-1.5">
+            <div
+              class="bg-canvas-elevated border border-hairline rounded p-1.5"
+              title="Change to the top word's pre-softmax score when this head is off — the same metric that ranks heads on the Circuit Map"
+            >
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Top-word Δ</div>
+              <div class="text-base font-bold text-accent-rust mt-0.5">
+                {(comparisonResult.ablatedTopTokenLogit - comparisonResult.baselineTopLogit).toFixed(2)}
+              </div>
+            </div>
+
+            <div
+              class="bg-canvas-elevated border border-hairline rounded p-1.5"
+              title="Lead the top word held over the runner-up, before → after (pre-softmax logits)"
+            >
+              <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Margin</div>
+              <div class="text-base font-bold text-ink mt-0.5">
+                {comparisonResult.baselineMargin.toFixed(1)} → {comparisonResult.ablatedMargin.toFixed(1)}
+              </div>
+            </div>
+
             <div
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
               title="Total change across all 32,000 output scores when this head is switched off (L2 difference)"
@@ -293,6 +359,14 @@
             </div>
           </div>
         </details>
+
+        <!-- Method note: what this measurement does and does not claim -->
+        <p class="mt-2.5 pt-2 border-t border-hairline text-[10px] font-sans text-ink-muted leading-snug">
+          Method: the head is switched off by zeroing its output (<span class="font-mono">zero ablation</span>)
+          on this prompt only. This shows the head's sensitivity for this exact context — it can push
+          activations outside the training distribution, and it may understate a head's importance
+          because later layers can compensate.
+        </p>
       </div>
     {/if}
   </div>

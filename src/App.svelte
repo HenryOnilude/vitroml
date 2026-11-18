@@ -5,7 +5,12 @@
   import type { ModelConfig, ModelWeights } from './engine/model';
   import { HookRegistry } from './engine/hooks';
   import { ForwardController } from './bridge/controller';
-  import { argmaxToken, probeBaselineLogits, measureHeadAblationL2 } from './engine/analysis';
+  import {
+    argmaxToken,
+    scanHeadImpacts,
+    comparisonCacheKey,
+    type HeadImpact,
+  } from './engine/analysis';
 
   import WorkbenchToolbar from './ui/components/WorkbenchToolbar.svelte';
   import HeroSection from './ui/components/HeroSection.svelte';
@@ -190,23 +195,92 @@
     return t.length > 0 ? t : `#${p.id}`;
   })();
 
-  // Head-importance saliency map: ‖Δlogits‖₂ per head, measured on load
-  let headImportance: (number | null)[][] | null = null;
+  // Head-impact scan: drop in the clean top-1 token's logit per head, measured
+  // at the position the experiment runs on. Runs asynchronously while playback
+  // is paused/complete, fills the grid progressively, and is cached per
+  // (prompt, position) so revisiting a position is free.
+  let headImpacts: (HeadImpact | null)[][] | null = null;
+  let scanProgress: { done: number; total: number } | null = null;
+  const impactCache = new Map<string, (HeadImpact | null)[][]>();
+  const baselineCache = new Map<string, Float32Array>();
+  let scanTicket = 0;
+  let scanTimer: ReturnType<typeof setTimeout> | null = null;
 
-  async function runImportanceScan() {
-    if (!config || !weights) return;
-    const baseline = probeBaselineLogits(1, 0, config, weights);
-    const grid: (number | null)[][] = Array.from({ length: config.nLayers }, () =>
+  $: headImportance = headImpacts
+    ? headImpacts.map((row) => row.map((c) => (c ? c.top1LogitDrop : null)))
+    : null;
+
+  // The scan's clean-run logits for the active position — lets the result
+  // panel skip its own baseline pass (halves its latency).
+  $: baselineForActivePos = (() => {
+    const logits = baselineCache.get(comparisonCacheKey(inputSequence, currentPos));
+    return logits ? { key: comparisonCacheKey(inputSequence, currentPos), logits } : null;
+  })();
+
+  async function runImpactScan(pos: number, tokens: number[]) {
+    if (!config || !weights || !tokenizer) return;
+    const maxPos = Math.min(pos, tokens.length - 1);
+    const key = comparisonCacheKey(tokens, maxPos);
+    const ticket = ++scanTicket;
+
+    const cached = impactCache.get(key);
+    if (cached) {
+      headImpacts = cached;
+      scanProgress = null;
+      return;
+    }
+
+    // Fresh null grid for the new position — cells mean "measuring", never stale.
+    const grid: (HeadImpact | null)[][] = Array.from({ length: config.nLayers }, () =>
       Array(config.nHeads).fill(null)
     );
-    headImportance = grid;
-    for (let l = 0; l < config.nLayers; l++) {
-      for (let h = 0; h < config.nHeads; h++) {
-        grid[l][h] = measureHeadAblationL2(baseline, 1, 0, l, h, config, weights);
-      }
-      headImportance = grid; // reveal layer-by-layer
-      await new Promise((r) => setTimeout(r, 0));
+    headImpacts = grid;
+    let done = 0;
+    const total = config.nLayers * config.nHeads;
+    scanProgress = { done, total };
+
+    const result = await scanHeadImpacts(tokens, maxPos, config, weights, tokenizer, {
+      isCancelled: () => scanTicket !== ticket,
+      onBaseline: (logits) => {
+        baselineCache.set(key, logits);
+      },
+      onCell: (impact) => {
+        if (scanTicket !== ticket) return;
+        grid[impact.layer][impact.head] = impact;
+        headImpacts = grid;
+        scanProgress = { done: ++done, total };
+      },
+    });
+    if (result && result.completed && scanTicket === ticket) {
+      impactCache.set(key, result.impacts);
+      scanProgress = null;
     }
+  }
+
+  function scheduleImpactScan() {
+    if (scanTimer) clearTimeout(scanTimer);
+    scanTimer = setTimeout(() => {
+      const s = $stateStore?.status;
+      // Re-check inside the timer: during autoplay 'paused'/'completed' are
+      // transient and resolve to 'running' before the debounce fires.
+      if (s === 'paused' || s === 'completed') {
+        runImpactScan(currentPos, inputSequence);
+      }
+    }, 150);
+  }
+
+  // Scan whenever the run is paused or finished at a position. Position and
+  // sequence are reactive deps so stepping to a new token rescans; the
+  // debounce + scanTicket discard stale scans.
+  $: if (
+    config &&
+    weights &&
+    tokenizer &&
+    inputSequence.length > 0 &&
+    currentPos >= 0 &&
+    ($stateStore?.status === 'paused' || $stateStore?.status === 'completed')
+  ) {
+    scheduleImpactScan();
   }
 
   // Autoregressive continuation: on completion, prefill prompt tokens first,
@@ -331,7 +405,8 @@
       controller.start(currentToken, currentPos);
 
       isLoading = false;
-      runImportanceScan();
+      // No explicit scan kickoff needed: controller.start() above sets status
+      // to 'paused', which schedules the impact scan reactively.
     } catch (err: unknown) {
       console.error('Model initialization error:', err);
       loadError = err instanceof Error ? err.message : String(err);
@@ -580,6 +655,8 @@
               {tokenizer}
               {currentActiveLayer}
               importance={headImportance}
+              {scanProgress}
+              baseline={baselineForActivePos}
               tokens={inputSequence}
               activePos={currentPos}
               {highlightedTarget}

@@ -8,9 +8,12 @@
   export let currentActiveLayer: number = -1;
   export let hoveredHead: number | null = null;
   export let highlighted: boolean = false;
-  // Measured importance: importance[l][h] = ‖Δlogits‖₂ when head is zero-ablated.
-  // null = not yet computed for that head.
+  // Measured impact: importance[l][h] = drop in the clean run's top-1 token
+  // logit when head (l,h) is zero-ablated, at the experiment position.
+  // null = not yet measured for that head.
   export let importance: (number | null)[][] | null = null;
+  // Small status line under the grid while a scan fills in, e.g. "measuring impacts… 14/36"
+  export let scanLabel: string | null = null;
 
   $: importanceMax = (() => {
     let m = 0;
@@ -113,7 +116,7 @@
         {@const isAblated = ablatedLayer === l && ablatedHead === h}
         {@const isLayerActive = currentActiveLayer === l}
         {@const imp = importance?.[l]?.[h] ?? null}
-        {@const impAlpha = imp !== null && importanceMax > 0 ? 0.05 + 0.4 * (imp / importanceMax) : 0}
+        {@const impAlpha = imp !== null && imp > 0 && importanceMax > 0 ? 0.05 + 0.4 * (imp / importanceMax) : 0}
 
         <button
           type="button"
@@ -134,11 +137,11 @@
             : isSelected
             ? ''
             : `background: rgba(17,18,21,${impAlpha})`}
-          title={`Layer ${l}, Head ${h} · Channels [${h * 48}..${(h + 1) * 48 - 1}]${imp !== null ? ` · output shifts ${imp.toFixed(1)} when off` : ''} · click to switch off`}
+          title={`Layer ${l}, Head ${h} · Channels [${h * 48}..${(h + 1) * 48 - 1}]${imp !== null ? ` · top-word score ${imp >= 0 ? 'drops' : 'rises'} ${Math.abs(imp).toFixed(2)} logits when off` : ''} · click to switch off`}
         >
           <span>{l}:{h}</span>
           <span class={`text-[8px] leading-none ${isAblated || isSelected ? 'opacity-85' : 'text-ink-muted'}`}>
-            {imp !== null ? `Δ${imp >= 100 ? imp.toFixed(0) : imp.toFixed(1)}` : `${h * 48}d`}
+            {imp !== null ? `Δ${Math.abs(imp) >= 10 ? imp.toFixed(0) : imp.toFixed(1)}` : `${h * 48}d`}
           </span>
         </button>
       {/each}
@@ -147,6 +150,9 @@
 
   <!-- Δ definition: the number only means something once you know what was measured -->
   <div class="mt-2 pt-2 border-t border-hairline text-[10px] font-mono text-slate-800 font-medium leading-snug">
-    Δ = how much the output scores change when that head is switched off. Darker = more important
+    Δ = how much the top word's score drops when that head is switched off (logits). Darker = bigger drop
+    {#if scanLabel}
+      <span class="block mt-0.5 text-ink-muted">{scanLabel}</span>
+    {/if}
   </div>
 </div>
