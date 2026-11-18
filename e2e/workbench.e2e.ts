@@ -49,7 +49,7 @@ test.describe('workbench smoke test', () => {
   test('390px: act switcher swaps panels and nothing overflows', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await expect(page.getByText('Working Vector')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Working Vector', { exact: true })).toBeVisible({ timeout: 30_000 });
 
     // Mobile: only Act 1 visible by default, switcher present
     await expect(page.getByRole('button', { name: 'Act 2 · Experiment' })).toBeVisible();
@@ -60,7 +60,7 @@ test.describe('workbench smoke test', () => {
     await expect(page.getByText('Now try breaking it')).toBeVisible();
     await page.getByText('Now try breaking it').click();
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible();
-    await expect(page.getByText('Working Vector')).not.toBeVisible();
+    await expect(page.getByText('Working Vector', { exact: true })).not.toBeVisible();
 
     const overflow = await page.evaluate(() => {
       const docOverflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
@@ -81,7 +81,7 @@ test.describe('workbench smoke test', () => {
   test('1280px: both acts side by side, no switcher, no overflow', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
-    await expect(page.getByText('Working Vector')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Working Vector', { exact: true })).toBeVisible({ timeout: 30_000 });
     // Act 2 opens beside Act 1 on desktop once the teaser is clicked
     await page.getByText('Now try breaking it').click();
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible({ timeout: 30_000 });
