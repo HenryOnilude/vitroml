@@ -791,6 +791,40 @@
           </div>
         </div>
 
+        <!-- Glossary: the friendly names used in the panels, translated -->
+        <div class="mt-4 pt-3 border-t border-hairline">
+          <h3 class="font-bold text-ink text-xs mb-2">The friendly names, translated</h3>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2.5 text-xs font-sans">
+            <div>
+              <dt class="font-semibold text-slate-900">Brain Parts <span class="font-mono font-normal text-ink-muted">→ attention heads</span></dt>
+              <dd class="text-slate-700">The 36 small units (6 per layer) that decide which earlier words to look at.</dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-900">Working Vector <span class="font-mono font-normal text-ink-muted">→ residual stream</span></dt>
+              <dd class="text-slate-700">The 288 numbers every layer reads from and writes back into — the running state of the guess.</dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-900">Attention Field <span class="font-mono font-normal text-ink-muted">→ attention weights</span></dt>
+              <dd class="text-slate-700">How strongly each head attends to each earlier word at this step.</dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-900">Memory <span class="font-mono font-normal text-ink-muted">→ MLP / feed-forward layer</span></dt>
+              <dd class="text-slate-700">The per-layer block that mixes in learned story patterns after attention runs.</dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-900">Watch it think <span class="font-mono font-normal text-ink-muted">→ forward pass</span></dt>
+              <dd class="text-slate-700">One full run of the model over the current word to produce a next-word guess.</dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-900">Switch off <span class="font-mono font-normal text-ink-muted">→ (zero) ablation</span></dt>
+              <dd class="text-slate-700">Setting a head's 48 output numbers to zero and re-running to see what changes.</dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-900">Score / confidence <span class="font-mono font-normal text-ink-muted">→ logits / probabilities</span></dt>
+              <dd class="text-slate-700">Logits are the raw pre-softmax scores for all 32,000 words; probabilities are those scores normalized to 0–100%.</dd>
+            </div>
+          </dl>
+        </div>
       </section>
     {/if}
   </main>
