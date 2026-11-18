@@ -522,6 +522,7 @@
 
       <!-- Right: Technical Status -->
       <div class="flex items-center gap-3 text-xs font-mono">
+        <a href="#about" class="text-ink-secondary hover:text-ink font-semibold transition-colors">About</a>
         {#if config}
           <div class="flex items-center gap-1.5 text-[11px] bg-slate-100 px-2.5 py-0.5 rounded border border-slate-300">
             <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
@@ -729,6 +730,68 @@
         </div>
         </div>
       </div>
+
+      <!-- About this project -->
+      <section id="about" class="mt-6 bg-white border border-hairline rounded p-4 sm:p-5 shadow-subtle">
+        <h2 class="font-serif font-bold text-lg text-ink tracking-tight mb-3">About this project</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-xs font-sans text-slate-800 leading-relaxed">
+          <div class="space-y-3">
+            <div>
+              <h3 class="font-bold text-ink mb-0.5">What question this explores</h3>
+              <p>[ONE-SENTENCE RESEARCH QUESTION]</p>
+            </div>
+            <div>
+              <h3 class="font-bold text-ink mb-0.5">What it is</h3>
+              <p>
+                Vitro is a workbench that runs a tiny language model live on this page and lets you
+                take it apart. Press Play and watch the model build a story one word at a time —
+                then switch off individual attention heads and measure exactly what each one was
+                doing.
+              </p>
+            </div>
+            <div>
+              <h3 class="font-bold text-ink mb-0.5">How it works</h3>
+              <p>
+                The model is <strong>stories15M</strong> — roughly 15.2 million parameters, 6 layers
+                with 6 attention heads each, a 288-dimensional working vector, and a 32,000-token
+                vocabulary. A TypeScript port of its forward pass runs entirely in your browser on
+                typed arrays; after the one-time ~58&nbsp;MB download, no computation touches a server.
+              </p>
+              <p class="mt-1.5">
+                "Switching off" a head is <strong>zero ablation</strong>: the head's 48-dimensional
+                output slice is set to zero at the attention block's output, before the output
+                projection — at every position of the story so far — and the whole forward pass is
+                re-run. The difference between the two runs is what that head was contributing.
+              </p>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div>
+              <h3 class="font-bold text-ink mb-0.5">How it differs from existing explainers</h3>
+              <p>[HOW THIS DIFFERS FROM EXISTING TOOLS]</p>
+            </div>
+            <div>
+              <h3 class="font-bold text-ink mb-0.5">Limitations</h3>
+              <p>
+                Impact numbers are a sensitivity probe, not a circuit claim: they measure one head on
+                one prompt at one position. Zero ablation can push activations outside what the model
+                saw in training, and later layers can partly compensate for a removed head, so
+                measured importance can be understated.
+              </p>
+              <p class="mt-1.5">
+                This is one small model. Nothing here should be read as a claim about larger models.
+              </p>
+            </div>
+            <div>
+              <h3 class="font-bold text-ink mb-0.5">Credits</h3>
+              <p>
+                Built by Henry Onilude. [LINK TO CODE / WRITE-UP]
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </section>
     {/if}
   </main>
 
@@ -779,7 +842,10 @@
   <footer class="border-t border-hairline py-3 px-4 sm:px-6 bg-white text-xs font-mono">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 min-w-0">
       <span class="text-slate-800 font-bold">15.2M Parameters · 6 Layers · 6 Heads · d=288</span>
-      <span class="text-slate-900 font-extrabold">Token {currentToken} · Position {currentPos}</span>
+      <span class="flex items-center gap-3 min-w-0">
+        <a href="#about" class="text-ink-secondary hover:text-ink font-semibold transition-colors">About this project</a>
+        <span class="text-slate-900 font-extrabold">Token {currentToken} · Position {currentPos}</span>
+      </span>
     </div>
   </footer>
 </div>
