@@ -14,6 +14,10 @@
   export let importance: (number | null)[][] | null = null;
   // Small status line under the grid while a scan fills in, e.g. "measuring impacts… 14/36"
   export let scanLabel: string | null = null;
+  // Top-ranked head under the same metric — ringed so the guide's "highlighted
+  // head" is literally marked before the user picks anything.
+  export let suggestedLayer: number | null = null;
+  export let suggestedHead: number | null = null;
 
   $: importanceMax = (() => {
     let m = 0;
@@ -75,6 +79,12 @@
         <span class="w-2.5 h-2.5 rounded border border-hairline-bright" style="background: rgba(17,18,21,0.35)"></span>
         <span class="text-ink-secondary">Impact if turned off</span>
       </span>
+      {#if suggestedLayer !== null && suggestedHead !== null}
+        <span class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded ring-2 ring-amber-500 ring-offset-1 border border-hairline"></span>
+          <span class="text-amber-700 font-medium">Biggest lever</span>
+        </span>
+      {/if}
     </div>
   </div>
 
@@ -114,6 +124,7 @@
       {#each HEADS as h}
         {@const isSelected = selectedLayer === l && selectedHead === h}
         {@const isAblated = ablatedLayer === l && ablatedHead === h}
+        {@const isSuggested = suggestedLayer === l && suggestedHead === h}
         {@const isLayerActive = currentActiveLayer === l}
         {@const imp = importance?.[l]?.[h] ?? null}
         {@const impAlpha = imp !== null && imp > 0 && importanceMax > 0 ? 0.05 + 0.4 * (imp / importanceMax) : 0}
@@ -130,7 +141,9 @@
               ? 'bg-ink border-ink text-white font-bold shadow-md ring-2 ring-ink ring-offset-1'
               : isLayerActive
               ? 'border-ink text-ink font-bold ring-1 ring-slate-300'
-              : 'hover:bg-white border-hairline hover:border-hairline-bright text-ink-secondary hover:text-ink hover:shadow-xs'
+              : `hover:bg-white border-hairline hover:border-hairline-bright text-ink-secondary hover:text-ink hover:shadow-xs${
+                  isSuggested ? ' ring-2 ring-amber-500 ring-offset-1' : ''
+                }`
           }`}
           style={isAblated
             ? 'background: #b91c1c; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.22) 0 2px, transparent 2px 4px)'

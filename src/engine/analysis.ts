@@ -276,6 +276,9 @@ export interface HeadImpactScan {
   baselineLogits: Float32Array;
   baselineTopTokenId: number;
   baselineTopPiece: string;
+  /** decoded piece at the tested position — the last piece the top-1
+   *  prediction may continue (for faded-prefix display) */
+  testedPiece: string;
   /** top1 − top2 logit margin in the clean run */
   baselineMargin: number;
   /** false when stopped early via isCancelled */
@@ -380,6 +383,10 @@ export async function scanHeadImpacts(
   const { i1: top1, i2: top2 } = top2Indices(baselineLogits);
   const baselineMargin = baselineLogits[top1] - baselineLogits[top2];
   const baselineTopPiece = tokenizer.decode(tokenList[maxPos], top1);
+  const testedPiece = tokenizer.decode(
+    maxPos > 0 ? tokenList[maxPos - 1] : 1,
+    tokenList[maxPos]
+  );
 
   const impacts: (HeadImpact | null)[][] = Array.from({ length: config.nLayers }, () =>
     Array(config.nHeads).fill(null)
@@ -389,6 +396,7 @@ export async function scanHeadImpacts(
     baselineLogits,
     baselineTopTokenId: top1,
     baselineTopPiece,
+    testedPiece,
     baselineMargin,
     completed: false,
   });
@@ -425,6 +433,7 @@ export async function scanHeadImpacts(
     baselineLogits,
     baselineTopTokenId: top1,
     baselineTopPiece,
+    testedPiece,
     baselineMargin,
     completed: true,
   };

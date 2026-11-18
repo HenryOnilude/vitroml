@@ -87,11 +87,15 @@ test.describe('workbench smoke test', () => {
     await expect(page.getByText('Circuit Map', { exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole('button', { name: 'Act 2 · Experiment' })).not.toBeVisible();
 
-    // Guided 3-step strip: step 2 runs the curated head for the default prompt
+    // Guided 3-step strip: step 2 runs whichever head currently ranks top on
+    // the circuit map (dynamic — read the name off the button, don't hardcode)
     await page.getByRole('button', { name: /^0:0/ }).click();
     await expect(page.getByText('Head L0:H0 Switched Off')).toBeVisible();
-    await page.getByRole('button', { name: /2\.\s*Switch off L0:H1/ }).click();
-    await expect(page.getByText('Head L0:H1 Switched Off')).toBeVisible();
+    const step2 = page.getByRole('button', { name: /2\.\s*Switch off L\d:H\d/ });
+    const namedHead = (await step2.textContent())?.match(/L\d:H\d/)?.[0];
+    expect(namedHead).toBeTruthy();
+    await step2.click();
+    await expect(page.getByText(`Head ${namedHead} Switched Off`)).toBeVisible();
     await expect(page.locator('#panel-circuit-map')).toHaveClass(/ring-amber-400/);
     await expect(page.getByText('Now try another square.')).toBeVisible();
 

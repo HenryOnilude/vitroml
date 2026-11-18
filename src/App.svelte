@@ -11,6 +11,7 @@
     comparisonCacheKey,
     type HeadImpact,
   } from './engine/analysis';
+  import precomputedScans from './data/precomputed-scans.json';
 
   import WorkbenchToolbar from './ui/components/WorkbenchToolbar.svelte';
   import HeroSection from './ui/components/HeroSection.svelte';
@@ -106,21 +107,13 @@
     act2Hint = false;
   }
 
-  // Curated example: per-preset head whose ablation changes the guess (from the
-  // sweep). "Once upon a time" has no flipping head, so its biggest confidence
-  // drop is used instead and said so. Fallback is the sweep's strongest head.
-  const CURATED_HEADS: Record<string, { layer: number; head: number; flipped: boolean }> = {
-    'Once upon a time': { layer: 0, head: 1, flipped: false },
-    'The little girl saw a bird': { layer: 5, head: 3, flipped: true },
-  };
   let currentPrompt = 'Once upon a time';
-  $: curated = CURATED_HEADS[currentPrompt] ?? { layer: 5, head: 4, flipped: false };
-  $: curatedKnown = currentPrompt in CURATED_HEADS;
-  $: step2Label = curated.flipped
-    ? `Switch off L${curated.layer}:H${curated.head}, the head that changes the answer.`
-    : curatedKnown
-    ? `Switch off L${curated.layer}:H${curated.head}, the biggest lever on this guess.`
-    : `Switch off L${curated.layer}:H${curated.head}, the biggest lever we found.`;
+  // Step 2 names the head the circuit map shades darkest — the largest top-1
+  // logit drop at the experiment position (topImpact, computed below).
+  // While a scan is in flight it stays neutral rather than naming a stale head.
+  $: step2Label = topImpact
+    ? `Switch off L${topImpact.layer}:H${topImpact.head}, the biggest lever on this guess.`
+    : 'Switch off the highlighted head, the biggest lever on this guess.';
 
   let highlightedTarget: 'controls' | 'circuit' | 'result' | null = null;
   let highlightTimer: ReturnType<typeof setTimeout> | null = null;
@@ -146,9 +139,9 @@
       openAct2();
       await tick();
     }
-    if (step === 2) {
-      activeSeveredHead = curated.head;
-      interventionRef?.selectHead(curated.layer, curated.head);
+    if (step === 2 && topImpact) {
+      activeSeveredHead = topImpact.head;
+      interventionRef?.selectHead(topImpact.layer, topImpact.head);
       showTryAnother = true;
     }
     const targetMap = {
@@ -203,12 +196,37 @@
   let scanProgress: { done: number; total: number } | null = null;
   const impactCache = new Map<string, (HeadImpact | null)[][]>();
   const baselineCache = new Map<string, Float32Array>();
+  // Seed the caches from build-time measurements (scripts/precompute_scans.ts
+  // runs the same scanHeadImpacts — no hand-typed values). Covers position 0
+  // and each built-in prompt's final position, so the guided head and the
+  // Act 2 default are instant on a fresh load; other positions scan live.
+  for (const e of precomputedScans.entries as {
+    key: string;
+    impacts: (HeadImpact | null)[][];
+    baselineLogits: number[];
+  }[]) {
+    impactCache.set(e.key, e.impacts);
+    baselineCache.set(e.key, Float32Array.from(e.baselineLogits));
+  }
   let scanTicket = 0;
   let scanTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: headImportance = headImpacts
     ? headImpacts.map((row) => row.map((c) => (c ? c.top1LogitDrop : null)))
     : null;
+
+  // Top-ranked head under the same metric the circuit map shades by. Null
+  // while a scan is in progress — a partially filled grid can still reshuffle.
+  $: topImpact = (() => {
+    if (!headImpacts || scanProgress) return null;
+    let best: HeadImpact | null = null;
+    for (const row of headImpacts) {
+      for (const c of row) {
+        if (c && (!best || c.top1LogitDrop > best.top1LogitDrop)) best = c;
+      }
+    }
+    return best;
+  })();
 
   // The scan's clean-run logits for the active position — lets the result
   // panel skip its own baseline pass (halves its latency).
@@ -333,7 +351,10 @@
   function resetGenerationState() {
     autoGen = false;
     generatedTokens = [];
-    inputSequence = [1, ...currentTokens];
+    // Start from BOS only: advanceGeneration's prefill branch feeds each
+    // prompt token through controller.advance() so the KV cache actually
+    // contains the prompt. Pre-seeding it here would skip that entirely.
+    inputSequence = [1];
     lastSampledPiece = null;
     currentToken = 1;
     currentPos = 0;
@@ -656,6 +677,8 @@
               {currentActiveLayer}
               importance={headImportance}
               {scanProgress}
+              suggestedLayer={topImpact?.layer ?? null}
+              suggestedHead={topImpact?.head ?? null}
               baseline={baselineForActivePos}
               tokens={inputSequence}
               activePos={currentPos}

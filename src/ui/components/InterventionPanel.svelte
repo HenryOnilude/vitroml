@@ -17,6 +17,10 @@
   export let importance: (number | null)[][] | null = null;
   // Scan progress for the measuring indicator on the grid
   export let scanProgress: { done: number; total: number } | null = null;
+  // Top-ranked head (largest top-1 logit drop) — shown as the "biggest lever"
+  // ring on the grid so the guide's named head is visibly marked.
+  export let suggestedLayer: number | null = null;
+  export let suggestedHead: number | null = null;
   // Clean-run logits for the active position, shared by the scan — skips the
   // panel's own baseline pass when the key matches.
   export let baseline: { key: string; logits: Float32Array } | null = null;
@@ -110,14 +114,19 @@
     dispatch('headHover', event.detail);
   }
 
-  // Honest probability display: never round a real change away.
-  // - p > 99.9% shows ">99.9%" (avoids claiming certainty)
-  // - p < 0.1% shows "<0.1%" (avoids claiming impossibility)
-  // - when the before/after change is under 1 percentage point, show two decimals
+  // Honest probability display: never round a real change away, and never
+  // display 100% or 0% unless the value actually rounds to it.
+  // - p >= 99.995% shows "100%"; p in (99.9, 99.995) shows ">99.9%"
+  // - p >= 99% or p <= 1% shows one decimal (99.88% -> "99.9%")
+  // - p <= 0.005% shows "0%"; p in (0.005, 0.1) shows "<0.1%"
+  // - mid-range: two decimals when the before/after change is under 1pp
   function fmtPct(p: number, change: number): string {
+    if (p >= 0.99995) return '100%';
     if (p > 0.999) return '>99.9%';
+    if (p <= 0.00005) return '0%';
     if (p < 0.001) return '<0.1%';
     const pct = p * 100;
+    if (p >= 0.99 || p <= 0.01) return pct.toFixed(1) + '%';
     return Math.abs(change * 100) < 1 ? pct.toFixed(2) + '%' : pct.toFixed(0) + '%';
   }
 
@@ -125,6 +134,14 @@
   function fmtLogitDelta(result: AblationComparisonResult): string {
     const delta = result.ablatedTopTokenLogit - result.baselineTopLogit;
     return `${delta > 0 ? '+' : ''}${delta.toFixed(1)} logits`;
+  }
+
+  // A predicted piece with no leading space continues the last consumed word —
+  // return the previous piece so it can be rendered faded ahead of it (L + ily).
+  function piecePrefix(piece: string, prevPiece: string): string | null {
+    return piece !== '' && !piece.startsWith(' ') && prevPiece !== ''
+      ? prevPiece
+      : null;
   }
 </script>
 
@@ -137,6 +154,8 @@
     {ablatedHead}
     {currentActiveLayer}
     {importance}
+    {suggestedLayer}
+    {suggestedHead}
     scanLabel={scanProgress ? `measuring impacts… ${scanProgress.done}/${scanProgress.total}` : null}
     highlighted={highlightedTarget === 'circuit'}
     on:select={handleHeadSelected}
@@ -190,6 +209,8 @@
       {@const maxProb = Math.max(...comparisonResult.top3Pairs.flatMap((p) => [p.baselineProb, p.ablatedProb]), 0.01)}
       {@const beforePiece = comparisonResult.baselineTop.tokenPiece.trim().slice(0, 8)}
       {@const afterPiece = comparisonResult.ablatedTop.tokenPiece.trim().slice(0, 8)}
+      {@const beforePrefix = piecePrefix(comparisonResult.baselineTop.tokenPiece, comparisonResult.testedPiece)}
+      {@const afterPrefix = piecePrefix(comparisonResult.ablatedTop.tokenPiece, comparisonResult.testedPiece)}
       <div class="space-y-2.5 transition-all duration-200">
         <!-- Experiment diagram: which head was cut, and what came out before vs after -->
         <svg
@@ -223,7 +244,7 @@
 
           <!-- before chip -->
           <rect x="176" y="6" width="66" height="26" rx="4" fill="white" stroke="#94a3b8" />
-          <text x="209" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill="#1e293b">"{beforePiece}"</text>
+          <text x="209" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill="#1e293b">"{#if beforePrefix}<tspan fill-opacity="0.4">{beforePrefix}</tspan>{/if}{beforePiece}"</text>
           <text x="209" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} before</text>
 
           <!-- arrow to after -->
@@ -232,7 +253,7 @@
 
           <!-- after chip -->
           <rect x="270" y="6" width="66" height="26" rx="4" fill={comparisonResult.predictionFlipped ? '#fff7ed' : 'white'} stroke={comparisonResult.predictionFlipped ? '#c2410c' : '#94a3b8'} />
-          <text x="303" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={comparisonResult.predictionFlipped ? '#9a3412' : '#1e293b'}>"{afterPiece}"</text>
+          <text x="303" y="17" text-anchor="middle" font-size="9" font-family="sans-serif" font-weight="700" fill={comparisonResult.predictionFlipped ? '#9a3412' : '#1e293b'}>"{#if afterPrefix}<tspan fill-opacity="0.4">{afterPrefix}</tspan>{/if}{afterPiece}"</text>
           <text x="303" y="27" text-anchor="middle" font-size="7" font-family="monospace" fill="#64748b">{fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} after</text>
         </svg>
 
@@ -246,14 +267,14 @@
           <span class="text-ink">
             With <strong class="font-mono">L{selectedLayer}:H{selectedHead}</strong> off, the model
             {#if comparisonResult.predictionFlipped}
-              says <strong class="font-mono">"{comparisonResult.ablatedTop.tokenPiece.trim()}"</strong>
-              instead of <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>.
+              says <strong class="font-mono" title={afterPrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if afterPrefix}<span class="opacity-40">{afterPrefix}</span>{/if}{comparisonResult.ablatedTop.tokenPiece.trim()}"</strong>
+              instead of <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>.
             {:else if comparisonResult.ablatedTopProb < comparisonResult.baselineTopProb}
-              still says <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
+              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
               but its confidence dropped from {fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}
               to {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}.
             {:else}
-              still says <strong class="font-mono">"{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
+              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>,
               and its confidence barely moved
               ({fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} → {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}).
             {/if}
@@ -281,7 +302,7 @@
           {#each comparisonResult.top3Pairs as pair}
             <div class="space-y-0.5">
               <div class="flex items-center justify-between text-[11px]">
-                <span class="font-sans font-bold text-ink">"{pair.tokenPiece.trim()}"</span>
+                <span class="font-sans font-bold text-ink" title={piecePrefix(pair.tokenPiece, comparisonResult.testedPiece) ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if piecePrefix(pair.tokenPiece, comparisonResult.testedPiece)}<span class="opacity-40">{piecePrefix(pair.tokenPiece, comparisonResult.testedPiece)}</span>{/if}{pair.tokenPiece.trim()}"</span>
                 <span class="font-mono text-[10px] text-ink-muted">{fmtPct(pair.baselineProb, pair.ablatedProb - pair.baselineProb)} → {fmtPct(pair.ablatedProb, pair.ablatedProb - pair.baselineProb)}</span>
               </div>
               <div class="h-1.5 bg-canvas-elevated rounded-full overflow-hidden">

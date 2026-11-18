@@ -10,7 +10,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "verify": "tsx scripts/verify_forward.ts",
-    "verify:interventions": "tsx scripts/verify_interventions.ts"
+    "verify:interventions": "tsx scripts/verify_interventions.ts",
+    "precompute": "tsx scripts/precompute_scans.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
