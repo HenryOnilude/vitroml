@@ -126,6 +126,7 @@
     const { layer, head } = event.detail;
     mobileAct = 2;
     activeSeveredHead = head;
+    userPickedHead = true;
     openAct2();
     interventionRef?.selectHead(layer, head);
   }
@@ -141,6 +142,7 @@
     }
     if (step === 2 && topImpact) {
       activeSeveredHead = topImpact.head;
+      userPickedHead = true;
       interventionRef?.selectHead(topImpact.layer, topImpact.head);
       showTryAnother = true;
     }
@@ -227,6 +229,36 @@
     }
     return best;
   })();
+
+  // Act 2's opening pick: a head that flips the top word wins (biggest drop
+  // among flippers), otherwise the largest top-1 logit drop. Same scan data
+  // the map shades by — null while a scan is in flight.
+  $: autoPick = (() => {
+    if (!headImpacts || scanProgress) return null;
+    let bestFlip: HeadImpact | null = null;
+    let bestDrop: HeadImpact | null = null;
+    for (const row of headImpacts) {
+      for (const c of row) {
+        if (!c) continue;
+        if (c.predictionFlipped && (!bestFlip || c.top1LogitDrop > bestFlip.top1LogitDrop)) bestFlip = c;
+        if (!bestDrop || c.top1LogitDrop > bestDrop.top1LogitDrop) bestDrop = c;
+      }
+    }
+    return bestFlip ?? bestDrop;
+  })();
+
+  // Once the user clicks a head on the grid, their choice wins until the run
+  // resets — auto-pick only applies while they haven't chosen one themselves.
+  let userPickedHead = false;
+  let lastAutoPickKey = '';
+  $: if (act2Open && autoPick && !userPickedHead && interventionRef) {
+    const k = `${autoPick.layer}:${autoPick.head}@${comparisonCacheKey(inputSequence, currentPos)}`;
+    if (k !== lastAutoPickKey) {
+      lastAutoPickKey = k;
+      activeSeveredHead = autoPick.head;
+      interventionRef.selectHead(autoPick.layer, autoPick.head);
+    }
+  }
 
   // The scan's clean-run logits for the active position — lets the result
   // panel skip its own baseline pass (halves its latency).
@@ -351,6 +383,9 @@
   function resetGenerationState() {
     autoGen = false;
     generatedTokens = [];
+    // A new run context clears the manual-pick flag so Act 2 auto-picks again.
+    userPickedHead = false;
+    lastAutoPickKey = '';
     // Start from BOS only: advanceGeneration's prefill branch feeds each
     // prompt token through controller.advance() so the KV cache actually
     // contains the prompt. Pre-seeding it here would skip that entirely.
@@ -686,6 +721,7 @@
               on:headHover={handleHeadHover}
               on:headSelect={(e) => {
                 activeSeveredHead = e.detail.head;
+                userPickedHead = true;
                 showTryAnother = false;
               }}
             />
