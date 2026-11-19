@@ -55,8 +55,9 @@ async function chipTable(page: Page) {
 async function playToEnd(page: Page) {
   const ctrl = page.locator('#panel-controls');
   await ctrl.getByRole('button', { name: 'Step' }).waitFor({ state: 'visible', timeout: 30_000 });
-  // 1x -> 2x -> 4x (160ms per step)
+  // Default is now 1/2x; cycle to 4x (160ms per step) for the test run
   const speedBtn = ctrl.getByTitle('Play speed (click to cycle)');
+  await speedBtn.click();
   await speedBtn.click();
   await speedBtn.click();
   await ctrl.getByRole('button', { name: 'Play', exact: true }).click();

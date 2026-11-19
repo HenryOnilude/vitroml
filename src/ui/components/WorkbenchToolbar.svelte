@@ -37,7 +37,10 @@
     { label: '2×', ms: 500 },
     { label: '4×', ms: 160 },
   ];
-  let speedIdx: number = 1;
+  // Default to the slowest pace: the animation is the product, and a
+  // first-time viewer needs time to read each phase. Faster speeds are a
+  // click away for repeat runs.
+  let speedIdx: number = 0;
 
   function cycleSpeed() {
     speedIdx = (speedIdx + 1) % SPEEDS.length;
