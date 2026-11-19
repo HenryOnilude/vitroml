@@ -13,12 +13,12 @@
   export let weights: ModelWeights | null = null;
   export let tokenizer: Tokenizer | null = null;
   export let currentActiveLayer: number = -1;
-  // Measured per-head impact (top-1 logit drop on ablation), fills in progressively
+  // Measured per-head impact (margin reduction on ablation), fills in progressively
   export let importance: (number | null)[][] | null = null;
   // Scan progress for the measuring indicator on the grid
   export let scanProgress: { done: number; total: number } | null = null;
-  // Top-ranked head (largest top-1 logit drop) — shown as the "biggest lever"
-  // ring on the grid so the guide's named head is visibly marked.
+  // Top-ranked head (word flip first, then largest margin reduction) — shown
+  // as the "biggest lever" ring so the guide's named head is visibly marked.
   export let suggestedLayer: number | null = null;
   export let suggestedHead: number | null = null;
   // Clean-run logits for the active position, shared by the scan — skips the
@@ -211,6 +211,8 @@
       {@const afterPiece = comparisonResult.ablatedTop.tokenPiece.trim().slice(0, 8)}
       {@const beforePrefix = piecePrefix(comparisonResult.baselineTop.tokenPiece, comparisonResult.testedPiece)}
       {@const afterPrefix = piecePrefix(comparisonResult.ablatedTop.tokenPiece, comparisonResult.testedPiece)}
+      {@const marginDrop = comparisonResult.baselineMargin - comparisonResult.ablatedMargin}
+      {@const scoreDrop = comparisonResult.top1LogitDrop}
       <div class="space-y-2.5 transition-all duration-200">
         <!-- Experiment diagram: which head was cut, and what came out before vs after -->
         <svg
@@ -265,19 +267,24 @@
         }`}>
           <span class={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${comparisonResult.predictionFlipped ? 'bg-accent-rust' : 'bg-slate-300'}`}></span>
           <span class="text-ink">
-            With <strong class="font-mono">L{selectedLayer}:H{selectedHead}</strong> off, the model
+            With <strong class="font-mono">L{selectedLayer}:H{selectedHead}</strong> off,
             {#if comparisonResult.predictionFlipped}
-              says <strong class="font-mono" title={afterPrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if afterPrefix}<span class="opacity-40">{afterPrefix}</span>{/if}{comparisonResult.ablatedTop.tokenPiece.trim()}"</strong>
-              instead of <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>.
-            {:else if comparisonResult.ablatedTopProb < comparisonResult.baselineTopProb}
-              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>
-              — the word stays the same, but this head was helping it: confidence drops
-              {fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}
-              → {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}.
+              the word changes from <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>
+              to <strong class="font-mono" title={afterPrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if afterPrefix}<span class="opacity-40">{afterPrefix}</span>{/if}{comparisonResult.ablatedTop.tokenPiece.trim()}"</strong>.
+            {:else if marginDrop > 0.05}
+              the model still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>
+              — the word stays the same, but its lead over the next word shrinks
+              ({comparisonResult.baselineMargin.toFixed(1)} → {comparisonResult.ablatedMargin.toFixed(1)}).
             {:else}
-              still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>
-              — the word and its confidence barely move
-              ({fmtPct(comparisonResult.baselineTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)} → {fmtPct(comparisonResult.ablatedTopProb, comparisonResult.ablatedTopProb - comparisonResult.baselineTopProb)}).
+              the model still says <strong class="font-mono" title={beforePrefix ? 'Word piece — the model is continuing the last chunk' : undefined}>"{#if beforePrefix}<span class="opacity-40">{beforePrefix}</span>{/if}{comparisonResult.baselineTop.tokenPiece.trim()}"</strong>.
+              {#if scoreDrop > 0.05}
+                The top word's score falls by {scoreDrop.toFixed(1)}, but its lead over the next word does not shrink
+              {:else if scoreDrop < -0.05}
+                The top word's score rises by {(-scoreDrop).toFixed(1)}, and its lead over the next word does not shrink
+              {:else}
+                The top word's score barely moves and its lead over the next word does not shrink
+              {/if}
+              ({comparisonResult.baselineMargin.toFixed(1)} → {comparisonResult.ablatedMargin.toFixed(1)}). The model's choice is unchanged.
             {/if}
           </span>
           <!-- Logit badge: the raw score change, always visible even when
@@ -322,7 +329,7 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center text-xs font-mono mt-1.5">
             <div
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
-              title="Change to the top word's pre-softmax score when this head is off — the same metric that ranks heads on the Circuit Map"
+              title="Change to the top word's pre-softmax score when this head is off"
             >
               <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Top-word Δ</div>
               <div class="text-base font-bold text-accent-rust mt-0.5">
@@ -332,7 +339,7 @@
 
             <div
               class="bg-canvas-elevated border border-hairline rounded p-1.5"
-              title="Lead the top word held over the runner-up, before → after (pre-softmax logits)"
+              title="Lead the top word held over the runner-up, before → after (pre-softmax logits) — the metric that ranks heads on the Circuit Map"
             >
               <div class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Margin</div>
               <div class="text-base font-bold text-ink mt-0.5">

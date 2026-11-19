@@ -1,4 +1,5 @@
 import {
+  forward,
   forwardPass,
   createRunBuffers,
   type StepState,
@@ -231,6 +232,47 @@ export class ForwardController {
       result: null,
       error: null,
     });
+    return true;
+  }
+
+  /**
+   * Like advance(), but runs the whole forward pass synchronously instead of
+   * creating a steppable generator. Used for prompt prefill during Play: the
+   * prompt is known context, so there is nothing to decide per yield — the
+   * words still land on the tape one at a time, just without the per-phase
+   * animation. Step clicks keep the generator path, so users who want to
+   * watch a prompt word travel layer by layer still can.
+   * Same KV-cache behaviour and seqLen guard as advance().
+   */
+  advanceFast(nextToken: number): boolean {
+    if (this.currentPos + 1 >= this.config.seqLen) {
+      return false;
+    }
+    this.currentPos += 1;
+    this.currentToken = nextToken;
+    this.pauseRequested = false;
+    this.isAutoPlaying = false;
+    this.generator = null;
+    try {
+      const logits = forward(
+        nextToken,
+        this.currentPos,
+        this.config,
+        this.weights,
+        this.buffers,
+        this.hooks
+      );
+      this.state.set({
+        status: 'completed',
+        currentStep: null,
+        result: { logits },
+        error: null,
+      });
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.state.update((s) => ({ ...s, status: 'error', error }));
+      throw error;
+    }
     return true;
   }
 

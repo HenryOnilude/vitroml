@@ -2,6 +2,10 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 
   export let step2Label: string = 'Tap the darkest square in the Circuit Map.';
+  // False until the model has generated at least one word — keeps a first-time
+  // visitor from running their first experiment at position 0 (BOS only),
+  // where every head's effect is near zero.
+  export let step2Enabled: boolean = true;
 
   const dispatch = createEventDispatcher<{
     guideStep: 1 | 2 | 3;
@@ -83,11 +87,19 @@
       <button
         type="button"
         on:click={() => dispatch('guideStep', 2)}
-        class="flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] transition group"
+        disabled={!step2Enabled}
+        title={step2Enabled ? undefined : 'Finish the story first — press Play so the model has written at least one word'}
+        class={`flex items-start gap-2 text-left px-2.5 py-1.5 rounded border border-hairline transition group ${
+          step2Enabled
+            ? 'bg-canvas-elevated/70 hover:bg-amber-50/70 hover:border-amber-300 active:scale-[0.99] cursor-pointer'
+            : 'bg-canvas-elevated/40 opacity-60 cursor-not-allowed'
+        }`}
       >
         <span class="font-mono font-bold text-[10px] text-accent-bronze shrink-0 mt-0.5">2.</span>
         <span class="flex-1 min-w-0">
-          <span class="block text-slate-900 group-hover:text-ink font-semibold">{step2Label}</span>
+          <span class="block text-slate-900 group-hover:text-ink font-semibold">
+            {step2Enabled ? step2Label : 'Finish the story first — press Play.'}
+          </span>
           <span class="block text-[10px] text-ink-muted leading-snug mt-0.5">Attention heads are small parts that look back at earlier words. L is the layer number, H is the head inside it.</span>
         </span>
         <span class="text-ink-muted group-hover:text-accent-bronze text-[10px] font-mono shrink-0 mt-0.5">→</span>

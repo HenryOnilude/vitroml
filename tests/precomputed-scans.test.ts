@@ -19,7 +19,6 @@ interface PrecomputedEntry {
   testedPiece: string;
   baselineMargin: number;
   impacts: (HeadImpact | null)[][];
-  baselineLogits: number[];
 }
 
 const data = JSON.parse(
@@ -33,8 +32,7 @@ const { config, weights } = parseCheckpoint(
 const tokBuf = fs.readFileSync(path.join(process.cwd(), 'public/models/tokenizer.bin'));
 const tokenizer = parseTokenizer(tokBuf.buffer.slice(tokBuf.byteOffset, tokBuf.byteOffset + tokBuf.byteLength), 32000);
 
-// JSON stores logits rounded to 1e-4; allow that plus float noise.
-const LOGIT_TOL = 1e-3;
+// Stored values are exact JSON serialisations of live floats; allow float noise.
 const MARGIN_TOL = 1e-3;
 const DROP_TOL = 1e-3;
 
@@ -71,12 +69,15 @@ describe('precomputed scans stay in sync with live scanHeadImpacts', () => {
               `L${l}:H${h} top1LogitDrop drifted: stored ${stored!.top1LogitDrop}, live ${live!.top1LogitDrop}`
             ).toBeLessThan(DROP_TOL);
             expect(live!.predictionFlipped, `L${l}:H${h} flip drifted`).toBe(stored!.predictionFlipped);
+            expect(
+              Math.abs(live!.marginReduction - stored!.marginReduction),
+              `L${l}:H${h} marginReduction drifted: stored ${stored!.marginReduction}, live ${live!.marginReduction}`
+            ).toBeLessThan(MARGIN_TOL);
+            expect(
+              Math.abs(live!.ablatedMargin - stored!.ablatedMargin),
+              `L${l}:H${h} ablatedMargin drifted: stored ${stored!.ablatedMargin}, live ${live!.ablatedMargin}`
+            ).toBeLessThan(MARGIN_TOL);
           }
-        }
-
-        expect(entry.baselineLogits.length).toBe(scan!.baselineLogits.length);
-        for (let i = 0; i < scan!.baselineLogits.length; i++) {
-          expect(Math.abs(scan!.baselineLogits[i] - entry.baselineLogits[i])).toBeLessThan(LOGIT_TOL);
         }
       }
     );

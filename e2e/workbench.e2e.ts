@@ -91,7 +91,19 @@ test.describe('workbench smoke test', () => {
     // the circuit map (dynamic — read the name off the button, don't hardcode)
     await page.getByRole('button', { name: /^0:0/ }).click();
     await expect(page.getByText('Head L0:H0 Switched Off')).toBeVisible();
+
+    // Step 2 is gated at position 0 — a first-time visitor should not run
+    // their first experiment on the near-null BOS-only state.
+    const step2Disabled = page.getByRole('button', { name: /2\.\s*Finish the story first/ });
+    await expect(step2Disabled).toBeDisabled();
+    await page.locator('#panel-controls').getByRole('button', { name: 'Play', exact: true }).click();
+    await page.waitForSelector('[title*="written by the model"]', { timeout: 60_000 });
+    await page.locator('#panel-controls').getByRole('button', { name: 'Pause' }).click();
+
+    // While the head-impact scan runs the label is neutral; it names a head
+    // once the scan completes (a live mid-sequence scan takes tens of seconds).
     const step2 = page.getByRole('button', { name: /2\.\s*Switch off L\d:H\d/ });
+    await expect(step2).toBeVisible({ timeout: 180_000 });
     const namedHead = (await step2.textContent())?.match(/L\d:H\d/)?.[0];
     expect(namedHead).toBeTruthy();
     await step2.click();

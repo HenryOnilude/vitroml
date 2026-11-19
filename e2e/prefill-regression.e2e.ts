@@ -25,6 +25,12 @@ const EXPECTED: Record<string, { chips: number[]; promptIds: number[]; pos: numb
     pos: 22,
     token: 6350,
   },
+  'A dragon wakes': {
+    promptIds: [319, 8338, 265, 281, 6926],
+    chips: [1, 319, 8338, 265, 281, 6926, 297, 278, 13569, 29889, 739, 338, 1407, 11220, 322, 278, 8805, 338, 13031, 292, 29889, 450],
+    pos: 21,
+    token: 450,
+  },
 };
 
 async function chipTable(page: Page) {
@@ -95,6 +101,31 @@ test.describe('prefill regression: the prompt actually enters the model', () => 
     const promptChips = chips.filter((c) => c.kind === 'prompt');
     expect(promptChips.map((c) => c.id)).toEqual(exp.promptIds);
     // Under the bug, the first generated chips re-spelled "Once upon a time".
+    expect(chips.filter((c) => c.kind === 'generated').slice(0, 4).map((c) => c.id)).not.toEqual(
+      [9038, 2501, 263, 931]
+    );
+  });
+
+  test('typed custom prompt: fed sequence is BOS + typed tokens + argmax', async ({ page }) => {
+    const exp = EXPECTED['A dragon wakes'];
+    await page.goto('/');
+    await page.locator('#panel-controls').getByRole('button', { name: 'Step' }).waitFor({
+      state: 'visible',
+      timeout: 30_000,
+    });
+    await page.locator('#prompt-input').fill('A dragon wakes');
+    await playToEnd(page);
+
+    const footer = await page.locator('footer').textContent();
+    expect(footer).toContain(`Token ${exp.token} · Position ${exp.pos}`);
+
+    const chips = await chipTable(page);
+    expect(chips.map((c) => c.id), 'chip ids = exact fed sequence').toEqual(exp.chips);
+    expect(chips.length).toBe(exp.pos + 1);
+
+    const promptChips = chips.filter((c) => c.kind === 'prompt');
+    expect(promptChips.map((c) => c.id)).toEqual(exp.promptIds);
+    // The typed prompt must be what entered the model — nothing else.
     expect(chips.filter((c) => c.kind === 'generated').slice(0, 4).map((c) => c.id)).not.toEqual(
       [9038, 2501, 263, 931]
     );

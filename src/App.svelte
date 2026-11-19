@@ -205,47 +205,45 @@
   for (const e of precomputedScans.entries as {
     key: string;
     impacts: (HeadImpact | null)[][];
-    baselineLogits: number[];
   }[]) {
     impactCache.set(e.key, e.impacts);
-    baselineCache.set(e.key, Float32Array.from(e.baselineLogits));
   }
   let scanTicket = 0;
   let scanTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // The map shades by margin reduction: how much the top word's lead over
+  // the runner-up shrinks when the head is off. A big logit drop on the top
+  // word can still leave its lead intact (the runner-up falls too), so the
+  // margin is the honest "did the decision move" signal.
   $: headImportance = headImpacts
-    ? headImpacts.map((row) => row.map((c) => (c ? c.top1LogitDrop : null)))
+    ? headImpacts.map((row) => row.map((c) => (c ? c.marginReduction : null)))
     : null;
 
-  // Top-ranked head under the same metric the circuit map shades by. Null
-  // while a scan is in progress — a partially filled grid can still reshuffle.
+  // Top-ranked head: a word flip beats everything, then the largest margin
+  // reduction. Same ranking drives the map's "Biggest lever" ring, the guide's
+  // Step 2 label and Act 2's opening pick. Null while a scan is in progress —
+  // a partially filled grid can still reshuffle.
   $: topImpact = (() => {
     if (!headImpacts || scanProgress) return null;
     let best: HeadImpact | null = null;
     for (const row of headImpacts) {
       for (const c of row) {
-        if (c && (!best || c.top1LogitDrop > best.top1LogitDrop)) best = c;
+        if (!c) continue;
+        if (
+          !best ||
+          (c.predictionFlipped && !best.predictionFlipped) ||
+          (c.predictionFlipped === best.predictionFlipped &&
+            c.marginReduction > best.marginReduction)
+        ) {
+          best = c;
+        }
       }
     }
     return best;
   })();
 
-  // Act 2's opening pick: a head that flips the top word wins (biggest drop
-  // among flippers), otherwise the largest top-1 logit drop. Same scan data
-  // the map shades by — null while a scan is in flight.
-  $: autoPick = (() => {
-    if (!headImpacts || scanProgress) return null;
-    let bestFlip: HeadImpact | null = null;
-    let bestDrop: HeadImpact | null = null;
-    for (const row of headImpacts) {
-      for (const c of row) {
-        if (!c) continue;
-        if (c.predictionFlipped && (!bestFlip || c.top1LogitDrop > bestFlip.top1LogitDrop)) bestFlip = c;
-        if (!bestDrop || c.top1LogitDrop > bestDrop.top1LogitDrop) bestDrop = c;
-      }
-    }
-    return bestFlip ?? bestDrop;
-  })();
+  // Act 2's opening pick — same ranking the map shades and Step 2 names.
+  $: autoPick = topImpact;
 
   // Once the user clicks a head on the grid, their choice wins until the run
   // resets — auto-pick only applies while they haven't chosen one themselves.
@@ -358,7 +356,12 @@
     }
 
     inputSequence = [...inputSequence, nextId];
-    const ok = controller.advance(nextId);
+    // Prompt tokens are known context — during Play they fast-forward
+    // synchronously (one quick pass per word) instead of stepping every
+    // phase. Step clicks keep the animated generator path.
+    const ok = isPrefill && resume !== 'step'
+      ? controller.advanceFast(nextId)
+      : controller.advance(nextId);
     if (!ok) {
       autoGen = false;
       return;
@@ -369,7 +372,14 @@
     if (resume === 'play' || resume === 'auto') {
       const keepGoing = autoGen && generatedTokens.length < MAX_GENERATED && nextId !== EOS_ID;
       autoGen = keepGoing;
-      if (keepGoing) controller.play();
+      if (keepGoing && isPrefill) {
+        // Remaining prompt words: continue the synchronous fast-forward. The
+        // 'completed' state set by advanceFast cannot drive this itself —
+        // a state.set issued inside a reactive statement is coalesced away.
+        advanceGeneration(resume);
+      } else if (keepGoing) {
+        controller.play();
+      }
     } else if (resume === 'step') {
       controller.step();
     }
@@ -559,7 +569,12 @@
       <!-- Unified Architectural Layout (Zero Fluff) -->
       <div class="space-y-3">
         <!-- 0. Hero: what this is and what you can do with it -->
-        <HeroSection {step2Label} on:guideStep={handleGuideStep} on:tour={() => (tourOpen = true)} />
+        <HeroSection
+          {step2Label}
+          step2Enabled={generatedTokens.length > 0}
+          on:guideStep={handleGuideStep}
+          on:tour={() => (tourOpen = true)}
+        />
 
         <!-- Chapters: numbered markers, one idea at a time -->
         <div class="relative space-y-3">
@@ -581,6 +596,7 @@
             highlighted={highlightedTarget === 'controls'}
             attentionRays={activeHeadRays}
             {focusMode}
+            maxPromptTokens={config ? config.seqLen - 1 - MAX_GENERATED : 239}
             on:tokensChange={handleTokensChange}
             on:advance={handleAdvance}
             on:userPlay={() => (autoGen = true)}
@@ -777,6 +793,10 @@
                 one prompt at one position. Zero ablation can push activations outside what the model
                 saw in training, and later layers can partly compensate for a removed head, so
                 measured importance can be understated.
+              </p>
+              <p class="mt-1.5">
+                A word flip at a close call — where the top word's lead was small to begin with —
+                is weaker evidence than a flip at a position where the model was confident.
               </p>
               <p class="mt-1.5">
                 This is one small model. Nothing here should be read as a claim about larger models.

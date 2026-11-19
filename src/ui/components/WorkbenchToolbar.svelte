@@ -12,6 +12,10 @@
   export let highlighted: boolean = false;
   export let attentionRays: { layer: number; head: number; weights: number[] } | null = null;
   export let focusMode: 'attention' | 'memory' | 'prediction' | null = null;
+  // Hard ceiling on prompt length (word pieces): BOS + prompt + the story it
+  // writes must fit the model's context window. Passed down from App.
+  export let maxPromptTokens: number = 239;
+  let promptError: string | null = null;
 
   const dispatch = createEventDispatcher<{
     tokensChange: { prompt: string; tokens: number[] };
@@ -39,14 +43,15 @@
     speedIdx = (speedIdx + 1) % SPEEDS.length;
   }
 
-  // Prompt positions replay known context — animate them at a boosted pace so
-  // the wait before the first generated word stays short. The user's speed
-  // choice still applies to every model-written word.
-  const PREFILL_BOOST = 4;
+  // The BOS pass and prompt positions replay known context — fast-forwarded
+  // so a first-time visitor reaches the story in seconds, not a minute.
+  // Users who want to watch each word travel can step through with the Step
+  // button (one click = one phase) or pick ½×.
+  const PREFILL_BOOST = 20;
   function delayFor(pos: number, promptLen: number, idx: number) {
     const base = SPEEDS[idx].ms;
-    const inPrefill = pos > 0 && pos <= promptLen;
-    return inPrefill ? Math.max(120, Math.round(base / PREFILL_BOOST)) : base;
+    const inPrefill = pos <= promptLen;
+    return inPrefill ? Math.max(20, Math.round(base / PREFILL_BOOST)) : base;
   }
   $: if (controller) controller.setStepDelay(delayFor(currentPos, tokenItems.length, speedIdx));
 
@@ -98,14 +103,23 @@
 
   $: if (tokenizer && promptText !== undefined) {
     const ids = tokenizer.encode(promptText);
-    tokenItems = ids.map((id, index) => {
-      const prev = index === 0 ? 1 : ids[index - 1];
-      return {
-        id,
-        text: tokenizer!.decode(prev, id),
-      };
-    });
-    dispatch('tokensChange', { prompt: promptText, tokens: ids });
+    if (ids.length > maxPromptTokens) {
+      // Reject rather than truncate: BOS + prompt + the generated story must
+      // fit the context window, and silently cutting the prompt would feed
+      // the model something other than what the user typed. The last valid
+      // prompt stays active until the text fits again.
+      promptError = `Prompt too long — ${ids.length} word pieces, max is ${maxPromptTokens}. The model's memory must also hold the story it writes.`;
+    } else {
+      promptError = null;
+      tokenItems = ids.map((id, index) => {
+        const prev = index === 0 ? 1 : ids[index - 1];
+        return {
+          id,
+          text: tokenizer!.decode(prev, id),
+        };
+      });
+      dispatch('tokensChange', { prompt: promptText, tokens: ids });
+    }
   }
 
   let stateStore: ForwardController['state'] | null = null;
@@ -142,6 +156,7 @@
         type="text"
         bind:value={promptText}
         placeholder="Type a prompt for the model to continue..."
+        aria-invalid={promptError !== null}
         class="w-full bg-transparent text-xs text-ink placeholder:text-slate-400 font-sans font-medium outline-none"
       />
     </div>
@@ -163,6 +178,11 @@
         "The little girl..."
       </button>
     </div>
+    {#if promptError}
+      <p class="sm:basis-full text-[11px] font-sans font-semibold text-accent-rust" role="alert">
+        {promptError}
+      </p>
+    {/if}
   </div>
 
   <!-- Right: Precision Transport Deck -->
@@ -170,8 +190,8 @@
     <!-- Step Next / Advance Token -->
     <button
       on:click={handleStep}
-      disabled={$stateStore?.status === 'running'}
-      title="Advance the model one stage so you can watch each part of its work"
+      disabled={$stateStore?.status === 'running' || promptError !== null}
+      title={promptError ? 'Shorten the prompt to fit the model\'s memory first' : 'Advance the model one stage so you can watch each part of its work'}
       class="px-3.5 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-white hover:bg-slate-100 active:bg-slate-200 active:scale-95 disabled:opacity-40 text-slate-900 border border-slate-300 hover:border-ink rounded text-xs font-bold transition flex items-center gap-1.5 shadow-subtle"
     >
       <svg class="w-3.5 h-3.5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,7 +215,8 @@
     {:else}
       <button
         on:click={handlePlay}
-        title="Run the model forward automatically at the chosen speed"
+        disabled={promptError !== null}
+        title={promptError ? 'Shorten the prompt to fit the model\'s memory first' : 'Run the model forward automatically at the chosen speed'}
         class={`px-3.5 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-ink hover:bg-black active:bg-neutral-800 active:scale-95 disabled:opacity-40 text-white rounded text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
           highlighted ? 'ring-4 ring-amber-400 animate-pulse' : ''
         }`}

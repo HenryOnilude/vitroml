@@ -8,8 +8,9 @@
   export let currentActiveLayer: number = -1;
   export let hoveredHead: number | null = null;
   export let highlighted: boolean = false;
-  // Measured impact: importance[l][h] = drop in the clean run's top-1 token
-  // logit when head (l,h) is zero-ablated, at the experiment position.
+  // Measured impact: importance[l][h] = margin reduction — how much the top
+  // word's lead over the runner-up (top1−top2 logits) shrinks when head (l,h)
+  // is zero-ablated, at the experiment position. Negative = the lead grows.
   // null = not yet measured for that head.
   export let importance: (number | null)[][] | null = null;
   // Small status line under the grid while a scan fills in, e.g. "measuring impacts… 14/36"
@@ -150,7 +151,7 @@
             : isSelected
             ? ''
             : `background: rgba(17,18,21,${impAlpha})`}
-          title={`Layer ${l}, Head ${h} · Channels [${h * 48}..${(h + 1) * 48 - 1}]${imp !== null ? ` · top-word score ${imp >= 0 ? 'drops' : 'rises'} ${Math.abs(imp).toFixed(2)} logits when off` : ''} · click to switch off`}
+          title={`Layer ${l}, Head ${h} · Channels [${h * 48}..${(h + 1) * 48 - 1}]${imp !== null ? ` · top word's lead ${imp >= 0 ? 'shrinks' : 'grows'} ${Math.abs(imp).toFixed(2)} logits when off` : ''} · click to switch off`}
         >
           <span>{l}:{h}</span>
           <span class={`text-[8px] leading-none ${isAblated || isSelected ? 'opacity-85' : 'text-ink-muted'}`}>
@@ -163,7 +164,7 @@
 
   <!-- Δ definition: the number only means something once you know what was measured -->
   <div class="mt-2 pt-2 border-t border-hairline text-[10px] font-mono text-slate-800 font-medium leading-snug">
-    Δ = how much the top word's score drops when that head is switched off (logits). Darker = bigger drop
+    Δ = how much the top word's lead over the next word shrinks when that head is off (logits). Darker = bigger shrink
     {#if scanLabel}
       <span class="block mt-0.5 text-ink-muted">{scanLabel}</span>
     {/if}

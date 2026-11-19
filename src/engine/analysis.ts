@@ -269,6 +269,9 @@ export interface HeadImpact {
   predictionFlipped: boolean;
   /** top1 − top2 logit margin in the ablated run (baseline margin is scan-level) */
   ablatedMargin: number;
+  /** baselineMargin − ablatedMargin: how much the top word's lead shrinks.
+   *  Positive = the head was protecting the lead; negative = the lead grows. */
+  marginReduction: number;
 }
 
 export interface HeadImpactScan {
@@ -416,12 +419,14 @@ export async function scanHeadImpacts(
       );
       if (!ablated) return partial();
       const at = top2Indices(ablated);
+      const ablatedMargin = ablated[at.i1] - ablated[at.i2];
       const impact: HeadImpact = {
         layer: l,
         head: h,
         top1LogitDrop: baselineLogits[top1] - ablated[top1],
         predictionFlipped: at.i1 !== top1,
-        ablatedMargin: ablated[at.i1] - ablated[at.i2],
+        ablatedMargin,
+        marginReduction: baselineMargin - ablatedMargin,
       };
       impacts[l][h] = impact;
       opts.onCell?.(impact);

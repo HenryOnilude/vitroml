@@ -54,12 +54,50 @@ function generateSequence(prompt: string): number[] {
   return seq;
 }
 
-const round4 = (v: number) => Math.round(v * 1e4) / 1e4;
-
 async function scanAt(tokens: number[], pos: number): Promise<HeadImpactScan> {
   const result = await scanHeadImpacts(tokens, pos, config, weights, tokenizer);
   if (!result || !result.completed) throw new Error(`scan did not complete at pos ${pos}`);
   return result;
+}
+
+// Only the fields the UI actually reads are stored: the per-head impacts
+// (which drive map shading, the "Biggest lever" ring, Step 2 and Act 2's
+// preselect) plus scan-level metadata. baselineLogits is deliberately NOT
+// written — it costs ~200KB per entry and only saves the result panel one
+// ~0.4s baseline pass, which it runs itself.
+function toEntry(prompt: string, tokens: number[], pos: number, scan: HeadImpactScan) {
+  return {
+    prompt,
+    tokens,
+    pos,
+    key: comparisonCacheKey(tokens, pos),
+    baselineTopTokenId: scan.baselineTopTokenId,
+    baselineTopPiece: scan.baselineTopPiece,
+    testedPiece: scan.testedPiece,
+    baselineMargin: scan.baselineMargin,
+    impacts: scan.impacts,
+  };
+}
+
+// The app's canonical ranking: a word flip beats everything, then the
+// largest margin reduction. Printed for review so regeneration logs show
+// which head the UI will highlight.
+function topRanked(scan: HeadImpactScan) {
+  let best: { l: number; h: number; mred: number; flip: boolean } | null = null;
+  for (let l = 0; l < scan.impacts.length; l++) {
+    for (let h = 0; h < scan.impacts[l].length; h++) {
+      const c = scan.impacts[l][h];
+      if (
+        c &&
+        (!best ||
+          (c.predictionFlipped && !best.flip) ||
+          (c.predictionFlipped === best.flip && c.marginReduction > best.mred))
+      ) {
+        best = { l, h, mred: c.marginReduction, flip: c.predictionFlipped };
+      }
+    }
+  }
+  return best;
 }
 
 const entries: Record<string, unknown>[] = [];
@@ -68,19 +106,11 @@ const entries: Record<string, unknown>[] = [];
 // covers all prompts since the cache key is the token prefix.
 {
   const scan = await scanAt([1], 0);
-  entries.push({
-    prompt: '(any) position 0',
-    tokens: [1],
-    pos: 0,
-    key: comparisonCacheKey([1], 0),
-    baselineTopTokenId: scan.baselineTopTokenId,
-    baselineTopPiece: scan.baselineTopPiece,
-    testedPiece: scan.testedPiece,
-    baselineMargin: scan.baselineMargin,
-    impacts: scan.impacts,
-    baselineLogits: Array.from(scan.baselineLogits, round4),
-  });
-  console.log(`pos 0 done (key ${comparisonCacheKey([1], 0)})`);
+  entries.push(toEntry('(any) position 0', [1], 0, scan));
+  const b = topRanked(scan);
+  console.log(
+    `pos 0 done (key ${comparisonCacheKey([1], 0)}) top L${b!.l}:H${b!.h} mred=${b!.mred.toFixed(2)} flip=${b!.flip}`
+  );
 }
 
 for (const prompt of PRESETS) {
@@ -88,31 +118,10 @@ for (const prompt of PRESETS) {
   const pos = seq.length - 1;
   console.log(`"${prompt}" -> ${seq.length} tokens, final pos ${pos}`);
   const scan = await scanAt(seq, pos);
-  entries.push({
-    prompt,
-    tokens: seq,
-    pos,
-    key: comparisonCacheKey(seq, pos),
-    baselineTopTokenId: scan.baselineTopTokenId,
-    baselineTopPiece: scan.baselineTopPiece,
-    testedPiece: scan.testedPiece,
-    baselineMargin: scan.baselineMargin,
-    impacts: scan.impacts,
-    baselineLogits: Array.from(scan.baselineLogits, round4),
-  });
-
-  // Report the top head so regeneration logs are reviewable
-  let best: { l: number; h: number; drop: number; flip: boolean } | null = null;
-  for (let l = 0; l < scan.impacts.length; l++) {
-    for (let h = 0; h < scan.impacts[l].length; h++) {
-      const c = scan.impacts[l][h];
-      if (c && (!best || c.top1LogitDrop > best.drop)) {
-        best = { l, h, drop: c.top1LogitDrop, flip: c.predictionFlipped };
-      }
-    }
-  }
+  entries.push(toEntry(prompt, seq, pos, scan));
+  const b = topRanked(scan);
   console.log(
-    `  top head L${best!.l}:H${best!.h} drop=${best!.drop.toFixed(2)} flip=${best!.flip} top="${scan.baselineTopPiece}"`
+    `  top head L${b!.l}:H${b!.h} mred=${b!.mred.toFixed(2)} flip=${b!.flip} top="${scan.baselineTopPiece}"`
   );
 }
 
