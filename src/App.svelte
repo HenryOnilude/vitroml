@@ -344,7 +344,7 @@
   // One beat between prompt words during Play — fast enough to reach the
   // story quickly, slow enough to watch each word land on the tape instead
   // of the position counter jumping several steps at once.
-  const PREFILL_WORD_MS = 400;
+  const PREFILL_WORD_MS = 700;
 
   async function advanceGeneration(resume: 'step' | 'play' | 'auto') {
     if (!controller || !tokenizer) return;
