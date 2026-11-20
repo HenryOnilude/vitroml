@@ -778,7 +778,10 @@
           <div class="space-y-3">
             <div>
               <h3 class="font-bold text-ink mb-0.5">What question this explores</h3>
-              <p>[ONE-SENTENCE RESEARCH QUESTION]</p>
+              <p>
+                Does switching off one part of a small language model and seeing whether the
+                next word changes help newcomers understand what that part does?
+              </p>
             </div>
             <div>
               <h3 class="font-bold text-ink mb-0.5">What it is</h3>
@@ -808,7 +811,10 @@
           <div class="space-y-3">
             <div>
               <h3 class="font-bold text-ink mb-0.5">How it differs from existing explainers</h3>
-              <p>[HOW THIS DIFFERS FROM EXISTING TOOLS]</p>
+              <p>
+                Several explainers show how a model works. Vitro lets you test it: switch off
+                one part and see what changes.
+              </p>
             </div>
             <div>
               <h3 class="font-bold text-ink mb-0.5">Limitations</h3>
@@ -829,7 +835,7 @@
             <div>
               <h3 class="font-bold text-ink mb-0.5">Credits</h3>
               <p>
-                Built by Henry Onilude. [LINK TO CODE / WRITE-UP]
+                Built by Henry Onilude. Code: <a href="https://github.com/HenryOnilude/vitroml" class="text-accent-bronze hover:text-amber-800 underline underline-offset-2" target="_blank" rel="noopener">https://github.com/HenryOnilude/vitroml</a>
               </p>
             </div>
           </div>
