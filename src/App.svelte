@@ -333,55 +333,79 @@
 
   // Autoregressive continuation: on completion, prefill prompt tokens first,
   // then feed back argmax predictions. autoGen keeps the loop running.
-  $: if (autoGen && $stateStore?.status === 'completed' && $stateStore.result) {
+  // Prevents a second advanceGeneration loop while one is already running —
+  // during the prefill beat, the 'completed' state it sets would otherwise
+  // fire the reactive again and double-feed tokens.
+  let advanceInFlight = false;
+  $: if (autoGen && !advanceInFlight && $stateStore?.status === 'completed' && $stateStore.result) {
     advanceGeneration('auto');
   }
 
-  function advanceGeneration(resume: 'step' | 'play' | 'auto') {
-    const result = $stateStore?.result;
-    if (!result || !controller || !tokenizer) return;
+  // One beat between prompt words during Play — fast enough to reach the
+  // story quickly, slow enough to watch each word land on the tape instead
+  // of the position counter jumping several steps at once.
+  const PREFILL_WORD_MS = 400;
 
-    const nextPos = inputSequence.length;
-    const prefillEnd = 1 + currentTokens.length; // BOS + all prompt tokens
-    const isPrefill = nextPos < prefillEnd;
-    const nextId = isPrefill ? currentTokens[nextPos - 1] : argmaxToken(result.logits);
-
-    if (isPrefill) {
-      lastSampledPiece = null;
-    } else {
-      const prevId = inputSequence[inputSequence.length - 1];
-      const piece = tokenizer.decode(prevId, nextId);
-      generatedTokens = [...generatedTokens, { id: nextId, piece }];
-      lastSampledPiece = piece;
+  async function advanceGeneration(resume: 'step' | 'play' | 'auto') {
+    if (!controller || !tokenizer) return;
+    if (resume !== 'step') {
+      if (advanceInFlight) return;
+      advanceInFlight = true;
     }
+    try {
+      while (true) {
+      const result = controller.state.get().result;
+      if (!result) return;
 
-    inputSequence = [...inputSequence, nextId];
-    // Prompt tokens are known context — during Play they fast-forward
-    // synchronously (one quick pass per word) instead of stepping every
-    // phase. Step clicks keep the animated generator path.
-    const ok = isPrefill && resume !== 'step'
-      ? controller.advanceFast(nextId)
-      : controller.advance(nextId);
-    if (!ok) {
-      autoGen = false;
-      return;
-    }
-    currentToken = nextId;
-    currentPos = controller.getPosition();
+      const nextPos = inputSequence.length;
+      const prefillEnd = 1 + currentTokens.length; // BOS + all prompt tokens
+      const isPrefill = nextPos < prefillEnd;
+      const nextId = isPrefill ? currentTokens[nextPos - 1] : argmaxToken(result.logits);
 
-    if (resume === 'play' || resume === 'auto') {
+      if (isPrefill) {
+        lastSampledPiece = null;
+      } else {
+        const prevId = inputSequence[inputSequence.length - 1];
+        const piece = tokenizer.decode(prevId, nextId);
+        generatedTokens = [...generatedTokens, { id: nextId, piece }];
+        lastSampledPiece = piece;
+      }
+
+      inputSequence = [...inputSequence, nextId];
+      // Prompt tokens are known context — during Play they run through one
+      // synchronous pass each instead of stepping every phase. Step clicks
+      // keep the animated generator path.
+      const ok = isPrefill && resume !== 'step'
+        ? controller.advanceFast(nextId)
+        : controller.advance(nextId);
+      if (!ok) {
+        autoGen = false;
+        return;
+      }
+      currentToken = nextId;
+      currentPos = controller.getPosition();
+
+      if (resume === 'step') {
+        controller.step();
+        return;
+      }
+
       const keepGoing = autoGen && generatedTokens.length < MAX_GENERATED && nextId !== EOS_ID;
       autoGen = keepGoing;
-      if (keepGoing && isPrefill) {
-        // Remaining prompt words: continue the synchronous fast-forward. The
-        // 'completed' state set by advanceFast cannot drive this itself —
-        // a state.set issued inside a reactive statement is coalesced away.
-        advanceGeneration(resume);
-      } else if (keepGoing) {
-        controller.play();
+      if (!keepGoing) return;
+      if (isPrefill) {
+        // Next prompt word — loop back after a beat. Can't rely on the
+        // 'completed' state to chain this: a state.set issued inside a
+        // reactive statement is coalesced away by Svelte.
+        await new Promise((r) => setTimeout(r, PREFILL_WORD_MS));
+        if (!autoGen) return; // paused during the beat
+        continue;
       }
-    } else if (resume === 'step') {
-      controller.step();
+      controller.play();
+      return;
+      }
+    } finally {
+      if (resume !== 'step') advanceInFlight = false;
     }
   }
 
